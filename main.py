@@ -23,10 +23,12 @@ def cmd_scrape(args):
     from modules.scraper.adzuna     import AdzunaScraper
     from modules.scraper.greenhouse import GreenhouseScraper
     from modules.scraper.lever      import LeverScraper
+    from modules.scraper.remotive   import RemotiveScraper
     from modules.tracker.database   import upsert_job, deduplicate_jobs
 
     scrapers = []
     scrapers.append(AdzunaScraper(country="us"))
+    scrapers.append(RemotiveScraper())
     scrapers += [GreenhouseScraper(token) for token in config.GREENHOUSE_BOARDS]
     scrapers += [LeverScraper(slug)       for slug  in config.LEVER_COMPANIES]
 
@@ -76,13 +78,15 @@ def cmd_score(args):
     """Parse JDs and score all 'new' jobs against the master resume."""
     from modules.tracker.database import get_jobs, save_fit_result, update_job_status
     from modules.parser.jd_parser import parse_jd
-    from modules.scorer.fit_scorer import score
+    from modules.scorer.llm_scorer import score_llm
 
     profile = _load_candidate_profile()
-    candidate_skills = profile.get("skills", [])
-    candidate_years  = profile.get("years_experience", 0)
-    candidate_edu    = profile.get("education", "")
-    candidate_loc    = profile.get("location", "")
+    candidate_skills  = profile.get("skills", [])
+    candidate_years   = profile.get("years_experience", 0)
+    candidate_edu     = profile.get("education", "")
+    candidate_loc     = profile.get("location", "")
+    candidate_titles  = profile.get("titles", [])
+    candidate_summary = profile.get("summary", "")
 
     jobs = get_jobs(status="new", limit=args.limit)
     if not jobs:
@@ -100,11 +104,13 @@ def cmd_score(args):
             skipped += 1
             continue
         parsed = parse_jd(job_row["description_raw"])
-        result = score(
+        result = score_llm(
             candidate_skills=candidate_skills,
             candidate_experience_years=candidate_years,
             candidate_education=candidate_edu,
             candidate_location=candidate_loc,
+            candidate_titles=candidate_titles,
+            candidate_summary=candidate_summary,
             parsed_jd=parsed,
         )
         save_fit_result(job_row["id"], result)
@@ -147,23 +153,39 @@ def cmd_run(args):
 
 def cmd_apply(args):
     """Easy Apply to all 'tailored' jobs above AUTO_APPLY_MIN_SCORE."""
-    from modules.tracker.database  import get_jobs, log_application
+    from modules.tracker.database      import get_jobs, log_application
     from modules.applicator.easy_apply import EasyApplyBot
-    from modules.tracker.models    import Job
+    from modules.tracker.models        import Job
+
+    submit = getattr(args, "submit", False)
+    if not submit:
+        print("[DRY RUN] Forms will be filled but NOT submitted. Pass --submit to actually apply.")
 
     jobs = get_jobs(status="tailored", min_score=config.AUTO_APPLY_MIN_SCORE, limit=10)
     if not jobs:
-        print("No jobs ready for auto-apply.")
+        print("No jobs ready for auto-apply. Run tailor first.")
         return
 
-    with EasyApplyBot(resume_path=config.ROOT_DIR / "resumes" / "tailored" / "resume.pdf",
-                      headless=False) as bot:
+    tailored_dir = config.ROOT_DIR / "resumes" / "tailored"
+
+    with EasyApplyBot(headless=False, submit=submit) as bot:
         for job_row in jobs:
             job = Job(**{k: job_row[k] for k in Job.model_fields if k in job_row})
+            # Use company-specific tailored resume if it exists, else generic
+            slug = job.company.lower().replace(" ", "")[:20]
+            resume = tailored_dir / f"resume_{slug}.docx"
+            if not resume.exists():
+                resume = next(tailored_dir.glob("*.docx"), None)
+            if not resume:
+                log.warning("No tailored resume found — skipping job %d", job_row["id"])
+                continue
+            bot.resume_path = resume
             app = bot.apply(job, job_row["id"])
             if app:
-                log_application(app)
-                print(f"  [OK] Applied: {job_row['title']} @ {job_row['company']}")
+                if submit:
+                    log_application(app)
+                status = "[OK]" if submit else "[DRY RUN]"
+                print(f"  {status} {job_row['title']} @ {job_row['company']}")
 
 
 def cmd_dashboard(_args):
@@ -210,6 +232,12 @@ def main():
     p_run.add_argument("--min-score",  type=float, default=config.MIN_SCORE_TO_TAILOR)
     p_run.add_argument("--auto-apply", action="store_true", help="Also run Easy Apply")
     p_run.set_defaults(func=cmd_run)
+
+    # apply
+    p_apply = sub.add_parser("apply", help="Easy Apply to tailored jobs")
+    p_apply.add_argument("--submit", action="store_true",
+                         help="Actually submit forms (default: dry run only)")
+    p_apply.set_defaults(func=cmd_apply)
 
     # dashboard
     p_dash = sub.add_parser("dashboard", help="Launch Streamlit dashboard")

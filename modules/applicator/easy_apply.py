@@ -1,36 +1,33 @@
 # modules/applicator/easy_apply.py
-# Browser automation layer for Easy Apply forms (LinkedIn, Greenhouse, Lever).
-# Uses Playwright. Install with: playwright install chromium
+# Browser automation for Greenhouse and Lever application forms.
+# Uses Playwright (headless=False by default so you can monitor / intervene).
 #
-# IMPORTANT: Use responsibly. Respect robots.txt and ToS.
-# Recommended: run headful (headless=False) so you can intervene if needed.
+# SAFETY: actual form submission only happens when submit=True is passed.
+#         Default is dry_run mode — fills the form but does NOT click Submit.
+#
+# Usage:
+#   with EasyApplyBot(resume_path=Path("resumes/tailored/resume_jobot.docx"),
+#                     submit=False) as bot:
+#       app = bot.apply(job, job_id)
 
 from __future__ import annotations
 from pathlib import Path
+from datetime import datetime
 
 import config
 from modules.tracker.models import Job, Application
-from modules.tracker import database
 
 log = config.get_logger(__name__)
 
 
 class EasyApplyBot:
-    """
-    Orchestrates automated form filling for supported job boards.
-
-    Usage:
-        bot = EasyApplyBot(resume_path=Path("resumes/tailored_stripe.pdf"))
-        result = bot.apply(job)
-    """
-
-    def __init__(self, resume_path: Path, headless: bool = False):
-        self.resume_path = resume_path
+    def __init__(self, resume_path: Path, headless: bool = False, submit: bool = False):
+        self.resume_path = Path(resume_path)
         self.headless    = headless
+        self.submit      = submit   # must be True to actually click Submit
+        self._pw         = None
         self._browser    = None
         self._page       = None
-
-    # ── Lifecycle ──────────────────────────────────────────────────────────────
 
     def __enter__(self):
         from playwright.sync_api import sync_playwright
@@ -40,109 +37,137 @@ class EasyApplyBot:
         return self
 
     def __exit__(self, *_):
-        self._browser.close()
-        self._pw.__exit__(None, None, None)
-
-    # ── Public API ─────────────────────────────────────────────────────────────
+        if self._browser:
+            self._browser.close()
+        if self._pw:
+            self._pw.__exit__(None, None, None)
 
     def apply(self, job: Job, job_id: int) -> Application | None:
-        """
-        Route to the correct apply strategy based on job.source.
-        Returns an Application record on success, None on failure.
-        """
-        log.info("Attempting Easy Apply: %s at %s", job.title, job.company)
+        log.info("Easy Apply [%s]: %s at %s (submit=%s)",
+                 job.source, job.title, job.company, self.submit)
         try:
-            if job.source == "linkedin":
-                return self._apply_linkedin(job, job_id)
             if job.source == "greenhouse":
                 return self._apply_greenhouse(job, job_id)
             if job.source == "lever":
                 return self._apply_lever(job, job_id)
+            if job.source == "linkedin":
+                return self._apply_linkedin(job, job_id)
             log.warning("No Easy Apply handler for source: %s", job.source)
             return None
         except Exception as e:
             log.error("Easy Apply failed for job %d: %s", job_id, e)
             return None
 
-    # ── Source-specific strategies ─────────────────────────────────────────────
-
-    def _apply_linkedin(self, job: Job, job_id: int) -> Application | None:
-        """
-        LinkedIn Easy Apply flow.
-        Requires user to be logged in (session cookies).
-
-        Steps:
-        1. Navigate to job URL
-        2. Click "Easy Apply" button
-        3. Fill name/email (usually pre-filled from LinkedIn profile)
-        4. Upload resume PDF
-        5. Handle multi-step form (work experience, screening questions)
-        6. Submit — STOP before submitting if any question requires manual review
-        """
-        # TODO: Implement LinkedIn session management (cookie injection)
-        # TODO: Handle multi-step form wizard
-        # TODO: Detect and skip jobs with "complex" forms requiring manual review
-        log.warning("LinkedIn Easy Apply: not yet implemented — manual action required")
-        return None
+    # ── Greenhouse ─────────────────────────────────────────────────────────────
 
     def _apply_greenhouse(self, job: Job, job_id: int) -> Application | None:
         """
-        Greenhouse standard application form.
-
-        Steps:
-        1. Navigate to job URL (redirect_url from API)
-        2. Fill: First Name, Last Name, Email, Phone, Resume upload
-        3. Answer standard demographic questions (skip / prefer not to say)
-        4. Submit
+        Fill the standard Greenhouse application form.
+        Greenhouse forms are hosted at boards.greenhouse.io/<token>/jobs/<id>.
+        Selectors are stable across all Greenhouse boards.
         """
         page = self._page
-        page.goto(job.url, wait_until="networkidle")
+        page.goto(job.url, wait_until="networkidle", timeout=30000)
 
-        # Standard Greenhouse form selectors (stable across boards)
-        try:
-            page.fill("#first_name",  _get_env_or_raise("APPLICANT_FIRST_NAME"))
-            page.fill("#last_name",   _get_env_or_raise("APPLICANT_LAST_NAME"))
-            page.fill("#email",       _get_env_or_raise("APPLICANT_EMAIL"))
-            page.fill("#phone",       _get_env_or_raise("APPLICANT_PHONE"))
-            page.set_input_files("#resume_text_resume", str(self.resume_path))
+        # Personal info
+        _fill_if_exists(page, "#first_name", config.APPLICANT_FIRST_NAME)
+        _fill_if_exists(page, "#last_name",  config.APPLICANT_LAST_NAME)
+        _fill_if_exists(page, "#email",      config.APPLICANT_EMAIL)
+        _fill_if_exists(page, "#phone",      config.APPLICANT_PHONE)
 
-            # Optional: cover letter
-            # page.set_input_files("#cover_letter_text_cover_letter", str(cover_letter_path))
+        # Resume upload — Greenhouse uses a hidden file input
+        resume_selector = "input[type='file'][id*='resume']"
+        if page.locator(resume_selector).count() > 0 and self.resume_path.exists():
+            page.set_input_files(resume_selector, str(self.resume_path))
+            log.info("Resume uploaded: %s", self.resume_path.name)
+        else:
+            log.warning("Resume input not found or file missing: %s", self.resume_path)
 
-            # Submit — comment this out during testing
-            # page.click("input[type='submit']")
+        # Demographic / EEO dropdowns — select "Decline to self-identify" where present
+        for select in page.locator("select").all():
+            try:
+                opts = select.locator("option").all_text_contents()
+                decline = next((o for o in opts if "decline" in o.lower()), None)
+                if decline:
+                    select.select_option(label=decline)
+            except Exception:
+                pass
 
-            log.info("Greenhouse form filled for job %d (submit commented out)", job_id)
-            return _make_application(job_id, self.resume_path, "easy_apply")
-        except Exception as e:
-            log.error("Greenhouse form error: %s", e)
-            return None
+        if self.submit:
+            page.locator("input[type='submit'], button[type='submit']").first.click()
+            page.wait_for_load_state("networkidle", timeout=15000)
+            log.info("Greenhouse form submitted for job %d", job_id)
+        else:
+            log.info("Greenhouse form filled (dry run — submit=False) for job %d", job_id)
+
+        return _make_application(job_id, self.resume_path, "easy_apply",
+                                 notes="dry_run" if not self.submit else "")
+
+    # ── Lever ──────────────────────────────────────────────────────────────────
 
     def _apply_lever(self, job: Job, job_id: int) -> Application | None:
         """
-        Lever standard application form.
-        Similar to Greenhouse but different selectors.
+        Fill the standard Lever application form.
+        Lever apply pages are at jobs.lever.co/<company>/<job-id>/apply.
         """
-        # TODO: Implement Lever form filling
-        log.warning("Lever Easy Apply: not yet implemented")
+        apply_url = job.url
+        if "/apply" not in apply_url:
+            apply_url = apply_url.rstrip("/") + "/apply"
+
+        page = self._page
+        page.goto(apply_url, wait_until="networkidle", timeout=30000)
+
+        full_name = f"{config.APPLICANT_FIRST_NAME} {config.APPLICANT_LAST_NAME}".strip()
+        _fill_if_exists(page, "input[name='name']",  full_name)
+        _fill_if_exists(page, "input[name='email']", config.APPLICANT_EMAIL)
+        _fill_if_exists(page, "input[name='phone']", config.APPLICANT_PHONE)
+
+        # Resume upload
+        resume_selector = "input[type='file']"
+        if page.locator(resume_selector).first.count() > 0 and self.resume_path.exists():
+            page.set_input_files(resume_selector, str(self.resume_path))
+            log.info("Resume uploaded: %s", self.resume_path.name)
+        else:
+            log.warning("Resume input not found or file missing: %s", self.resume_path)
+
+        if self.submit:
+            page.locator("button[type='submit'], input[type='submit']").first.click()
+            page.wait_for_load_state("networkidle", timeout=15000)
+            log.info("Lever form submitted for job %d", job_id)
+        else:
+            log.info("Lever form filled (dry run — submit=False) for job %d", job_id)
+
+        return _make_application(job_id, self.resume_path, "easy_apply",
+                                 notes="dry_run" if not self.submit else "")
+
+    # ── LinkedIn ───────────────────────────────────────────────────────────────
+
+    def _apply_linkedin(self, job: Job, job_id: int) -> Application | None:
+        """LinkedIn Easy Apply requires an active logged-in session — not automated."""
+        log.warning("LinkedIn Easy Apply requires manual login — skipping job %d", job_id)
         return None
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
-def _get_env_or_raise(key: str) -> str:
-    import os
-    val = os.getenv(key, "")
-    if not val:
-        raise EnvironmentError(f"{key} not set in .env — required for Easy Apply")
-    return val
+def _fill_if_exists(page, selector: str, value: str) -> None:
+    """Fill a field only if it exists on the page and value is non-empty."""
+    if not value:
+        return
+    try:
+        loc = page.locator(selector)
+        if loc.count() > 0:
+            loc.first.fill(value)
+    except Exception as e:
+        log.debug("Could not fill %s: %s", selector, e)
 
 
-def _make_application(job_id: int, resume_path: Path, method: str) -> Application:
-    from datetime import datetime
+def _make_application(job_id: int, resume_path: Path,
+                      method: str, notes: str = "") -> Application:
     return Application(
         job_id=job_id,
         resume_path=str(resume_path),
         applied_at=datetime.utcnow().isoformat(),
         method=method,
+        notes=notes,
     )

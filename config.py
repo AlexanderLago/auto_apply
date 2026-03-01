@@ -37,7 +37,13 @@ WEIGHTS = {
 
 # ── Thresholds ─────────────────────────────────────────────────────────────────
 AUTO_APPLY_MIN_SCORE  = int(os.getenv("AUTO_APPLY_MIN_SCORE", 75))
-MIN_SCORE_TO_TAILOR   = int(os.getenv("MIN_SCORE_TO_TAILOR",  50))
+MIN_SCORE_TO_TAILOR   = int(os.getenv("MIN_SCORE_TO_TAILOR",  65))
+
+# ── Applicant info (for EasyApplyBot) ──────────────────────────────────────────
+APPLICANT_FIRST_NAME  = os.getenv("APPLICANT_FIRST_NAME", "")
+APPLICANT_LAST_NAME   = os.getenv("APPLICANT_LAST_NAME",  "")
+APPLICANT_EMAIL       = os.getenv("APPLICANT_EMAIL",      "")
+APPLICANT_PHONE       = os.getenv("APPLICANT_PHONE",      "")
 
 # ── Logging ────────────────────────────────────────────────────────────────────
 LOG_PATH.parent.mkdir(parents=True, exist_ok=True)

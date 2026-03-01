@@ -1,101 +1,189 @@
 # dashboard/app.py — Streamlit monitoring dashboard
-# Run with: streamlit run dashboard/app.py (from the auto_apply root)
-#
-# Shows pipeline status, scored jobs, application log, and manual trigger buttons.
+# Run with: python main.py dashboard  (or: streamlit run dashboard/app.py)
 
+import json
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parents[1]))  # auto_apply root on path
+sys.path.insert(0, str(Path(__file__).parents[1]))
 
 import streamlit as st
 import pandas as pd
 
 import config
-from modules.tracker.database import init_db, get_jobs, get_applications
+from modules.tracker.database import (
+    init_db, get_jobs, get_applications, deduplicate_jobs, update_job_status,
+    save_fit_result,
+)
 
-st.set_page_config(page_title="Auto Apply", page_icon="🤖", layout="wide")
-
+st.set_page_config(page_title="Auto Apply", layout="wide")
 init_db()
 
-st.title("🤖 Auto Apply — Pipeline Dashboard")
+st.title("Auto Apply — Pipeline Dashboard")
 
-# ── Sidebar controls ───────────────────────────────────────────────────────────
+# ── Sidebar controls ────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.header("⚙️ Run Pipeline")
+    st.header("Run Pipeline")
     keyword  = st.text_input("Keyword",  placeholder="data analyst")
     location = st.text_input("Location", placeholder="remote")
     limit    = st.slider("Max jobs to scrape", 10, 200, 50, step=10)
 
-    if st.button("▶ Scrape", use_container_width=True):
+    # ── Scrape ──────────────────────────────────────────────────────────────────
+    if st.button("Scrape", use_container_width=True):
         from modules.scraper.adzuna     import AdzunaScraper
         from modules.scraper.greenhouse import GreenhouseScraper
         from modules.scraper.lever      import LeverScraper
+        from modules.scraper.remotive   import RemotiveScraper
         from modules.tracker.database   import upsert_job
         with st.spinner("Scraping..."):
             scrapers = (
-                [AdzunaScraper()] +
-                [GreenhouseScraper(t) for t in config.GREENHOUSE_BOARDS] +
-                [LeverScraper(s)      for s  in config.LEVER_COMPANIES]
+                [AdzunaScraper(country="us")]
+                + [GreenhouseScraper(t) for t in config.GREENHOUSE_BOARDS]
+                + [LeverScraper(s)      for s  in config.LEVER_COMPANIES]
+                + [RemotiveScraper()]
             )
-            total = sum(
-                (upsert_job(j) and 1 or 1)
-                for sc in scrapers
-                for j in sc.scrape(keyword=keyword, location=location, max_results=limit)
-            )
-        st.success(f"Scraped {total} jobs")
+            total = 0
+            for sc in scrapers:
+                for j in sc.scrape(keyword=keyword, location=location, max_results=limit):
+                    upsert_job(j)
+                    total += 1
+            removed = deduplicate_jobs()
+        st.success(f"Scraped {total} jobs ({removed} duplicates removed)")
         st.rerun()
 
-    if st.button("🎯 Score All New", use_container_width=True):
-        from modules.parser.jd_parser    import parse_jd
-        from modules.scorer.fit_scorer   import score
-        from modules.tailor.resume_tailor import load_master_resume
-        from modules.tracker.database    import save_fit_result
-        from modules.tracker.models      import Job
+    # ── Score ───────────────────────────────────────────────────────────────────
+    if st.button("Score All New", use_container_width=True):
+        from modules.parser.jd_parser        import parse_jd
+        from modules.scorer.llm_scorer       import score_llm
+        from modules.parser.candidate_parser import load_cached_profile, parse_candidate
+        from modules.tailor.resume_tailor    import load_master_resume
         with st.spinner("Scoring..."):
-            resume_text = load_master_resume()
-            new_jobs = get_jobs(status="new", limit=200)
-            for row in new_jobs:
-                parsed = parse_jd(row["description_raw"])
-                result = score([], 0, "", "", parsed)      # TODO: parse candidate profile
-                save_fit_result(row["id"], result)
-        st.success(f"Scored {len(new_jobs)} jobs")
+            profile = load_cached_profile()
+            if not profile:
+                profile = parse_candidate(load_master_resume())
+            new_jobs = get_jobs(status="new", limit=500)
+            skipped = 0
+            scored_count = 0
+            prog = st.progress(0)
+            for i, row in enumerate(new_jobs):
+                if len(row["description_raw"]) < 200:
+                    update_job_status(row["id"], "ignored")
+                    skipped += 1
+                else:
+                    parsed = parse_jd(row["description_raw"])
+                    result = score_llm(
+                        candidate_skills=profile.get("skills", []),
+                        candidate_experience_years=profile.get("years_experience", 0),
+                        candidate_education=profile.get("education", ""),
+                        candidate_location=profile.get("location", ""),
+                        candidate_titles=profile.get("titles", []),
+                        candidate_summary=profile.get("summary", ""),
+                        parsed_jd=parsed,
+                    )
+                    save_fit_result(row["id"], result)
+                    scored_count += 1
+                prog.progress((i + 1) / max(len(new_jobs), 1))
+        st.success(f"Scored {scored_count} jobs ({skipped} skipped — sparse descriptions)")
         st.rerun()
 
-# ── Metrics ────────────────────────────────────────────────────────────────────
-all_jobs = get_jobs(limit=1000)
-df_jobs  = pd.DataFrame(all_jobs) if all_jobs else pd.DataFrame()
+    # ── Tailor ──────────────────────────────────────────────────────────────────
+    if st.button("Tailor Top Jobs", use_container_width=True):
+        from modules.parser.jd_parser      import parse_jd
+        from modules.tailor.resume_tailor  import tailor, load_master_resume
+        output_dir = config.ROOT_DIR / "resumes" / "tailored"
+        with st.spinner("Tailoring..."):
+            resume_text = load_master_resume()
+            jobs = get_jobs(status="scored", min_score=config.MIN_SCORE_TO_TAILOR, limit=10)
+            count, failed = 0, 0
+            for row in jobs:
+                try:
+                    parsed = parse_jd(row["description_raw"])
+                    tailor(resume_text, row["description_raw"], parsed, output_dir=output_dir)
+                    update_job_status(row["id"], "tailored")
+                    count += 1
+                except Exception as e:
+                    st.warning(f"Tailor failed for {row['title']}: {e}")
+                    failed += 1
+        msg = f"Tailored {count} resumes"
+        if failed:
+            msg += f" ({failed} failed)"
+        st.success(msg)
+        st.rerun()
 
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("Total Jobs",    len(df_jobs))
-col2.metric("Scored",        len(df_jobs[df_jobs["status"] == "scored"])        if not df_jobs.empty else 0)
-col3.metric("Tailored",      len(df_jobs[df_jobs["status"] == "tailored"])      if not df_jobs.empty else 0)
-col4.metric("Applied",       len(df_jobs[df_jobs["status"] == "applied"])       if not df_jobs.empty else 0)
+# ── Metrics row ─────────────────────────────────────────────────────────────────
+all_jobs = get_jobs(limit=2000)
+df       = pd.DataFrame(all_jobs) if all_jobs else pd.DataFrame()
+
+def _count(status):
+    return len(df[df["status"] == status]) if not df.empty else 0
+
+c1, c2, c3, c4, c5 = st.columns(5)
+c1.metric("Total Jobs", len(df))
+c2.metric("Scored",     _count("scored"))
+c3.metric("Tailored",   _count("tailored"))
+c4.metric("Applied",    _count("applied"))
+c5.metric("Ignored",    _count("ignored"))
 
 st.divider()
 
-# ── Job table ──────────────────────────────────────────────────────────────────
-tab_jobs, tab_apps = st.tabs(["🔍 Jobs", "📋 Applications"])
+# ── Main tabs ───────────────────────────────────────────────────────────────────
+tab_jobs, tab_detail, tab_apps = st.tabs(["Jobs", "Job Detail", "Applications"])
 
 with tab_jobs:
-    st.subheader("Scored Jobs")
     min_score = st.slider("Min fit score", 0, 100, 50)
-
-    if not df_jobs.empty:
-        display_cols = [c for c in ["title", "company", "location", "fit_score",
-                                     "work_type", "status", "url"] if c in df_jobs.columns]
-        filtered = df_jobs[df_jobs["fit_score"].notna() & (df_jobs["fit_score"] >= min_score)]
-        filtered = filtered.sort_values("fit_score", ascending=False)
+    if df.empty:
+        st.info("No jobs yet — run Scrape + Score from the sidebar.")
+    else:
+        scored_df = df[df["fit_score"].notna() & (df["fit_score"] >= min_score)].copy()
+        scored_df = scored_df.sort_values("fit_score", ascending=False)
+        cols = [c for c in ["title", "company", "location", "work_type",
+                             "fit_score", "status", "source", "url"] if c in scored_df.columns]
         st.dataframe(
-            filtered[display_cols],
+            scored_df[cols],
             column_config={
-                "fit_score": st.column_config.ProgressColumn("Score", min_value=0, max_value=100),
-                "url":       st.column_config.LinkColumn("Link"),
+                "fit_score": st.column_config.ProgressColumn(
+                    "Score", min_value=0, max_value=100, format="%.0f"),
+                "url": st.column_config.LinkColumn("Link"),
             },
             use_container_width=True,
             hide_index=True,
         )
+        st.caption(f"{len(scored_df)} jobs shown")
+
+with tab_detail:
+    if df.empty or df["fit_score"].isna().all():
+        st.info("Score some jobs first.")
     else:
-        st.info("No jobs yet — run Scrape + Score from the sidebar.")
+        scored_df2 = df[df["fit_score"].notna()].sort_values("fit_score", ascending=False)
+        labels = scored_df2["title"] + " @ " + scored_df2["company"] + \
+                 " — " + scored_df2["fit_score"].astype(int).astype(str)
+        choice = st.selectbox("Pick a job", range(len(scored_df2)),
+                              format_func=lambda i: labels.iloc[i])
+        row = scored_df2.iloc[choice]
+
+        col_l, col_r = st.columns([2, 1])
+        with col_l:
+            st.markdown(f"### {row['title']}")
+            st.markdown(f"**{row['company']}** &nbsp;|&nbsp; {row['location']} &nbsp;|&nbsp; "
+                        f"{row['work_type']} &nbsp;|&nbsp; *{row['source']}*")
+            if row.get("url"):
+                st.markdown(f"[Open posting]({row['url']})")
+            st.markdown(f"**Status:** `{row['status']}`")
+
+        with col_r:
+            st.markdown("**Fit Breakdown**")
+            if row.get("fit_breakdown"):
+                try:
+                    bd = json.loads(row["fit_breakdown"]) if isinstance(row["fit_breakdown"], str) \
+                         else row["fit_breakdown"]
+                    for k, v in bd.items():
+                        st.metric(k.capitalize(), f"{float(v):.0f} / 100")
+                except Exception:
+                    pass
+            st.metric("Overall Score", f"{row['fit_score']:.0f} / 100")
+
+        if row.get("description_raw"):
+            with st.expander("Full job description"):
+                st.text(row["description_raw"][:4000])
 
 with tab_apps:
     st.subheader("Application Log")
