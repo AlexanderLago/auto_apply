@@ -23,7 +23,7 @@ def cmd_scrape(args):
     from modules.scraper.adzuna     import AdzunaScraper
     from modules.scraper.greenhouse import GreenhouseScraper
     from modules.scraper.lever      import LeverScraper
-    from modules.tracker.database   import upsert_job
+    from modules.tracker.database   import upsert_job, deduplicate_jobs
 
     scrapers = []
     scrapers.append(AdzunaScraper(country="us"))
@@ -38,8 +38,9 @@ def cmd_scrape(args):
             upsert_job(job)
             total += 1
 
-    log.info("Scraped %d jobs total", total)
-    print(f"[OK] Scraped {total} jobs.")
+    removed = deduplicate_jobs()
+    log.info("Scraped %d jobs total (%d duplicates removed)", total, removed)
+    print(f"[OK] Scraped {total} jobs ({removed} duplicates removed).")
 
 
 def _load_candidate_profile() -> dict:
@@ -73,7 +74,7 @@ def cmd_profile(args):
 
 def cmd_score(args):
     """Parse JDs and score all 'new' jobs against the master resume."""
-    from modules.tracker.database import get_jobs, save_fit_result
+    from modules.tracker.database import get_jobs, save_fit_result, update_job_status
     from modules.parser.jd_parser import parse_jd
     from modules.scorer.fit_scorer import score
 
@@ -92,7 +93,12 @@ def cmd_score(args):
     print(f"\nScoring {len(jobs)} jobs for {profile.get('name')} "
           f"({len(candidate_skills)} skills, {candidate_years} yrs exp)\n")
 
+    skipped = 0
     for job_row in jobs:
+        if len(job_row["description_raw"]) < 200:
+            update_job_status(job_row["id"], "ignored")
+            skipped += 1
+            continue
         parsed = parse_jd(job_row["description_raw"])
         result = score(
             candidate_skills=candidate_skills,
@@ -105,6 +111,8 @@ def cmd_score(args):
         filled = int(result.score / 10)
         bar = "#" * filled + "-" * (10 - filled)
         print(f"  [{bar}] {result.score:5.1f}  {job_row['title'][:40]:<40} @ {job_row['company'][:25]:<25}  -> {result.recommendation}")
+    if skipped:
+        print(f"  (skipped {skipped} jobs with sparse descriptions)")
 
 
 def cmd_tailor(args):

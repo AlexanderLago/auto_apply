@@ -95,6 +95,28 @@ def get_jobs(status: Optional[str] = None, min_score: Optional[float] = None,
     return [dict(r) for r in rows]
 
 
+# ── Deduplication ──────────────────────────────────────────────────────────────
+
+def deduplicate_jobs() -> int:
+    """
+    Remove duplicate rows that share the same (title, company, source),
+    keeping only the lowest id. Returns the number of rows deleted.
+    """
+    with _conn() as con:
+        cur = con.execute("""
+            DELETE FROM jobs
+            WHERE id NOT IN (
+                SELECT MIN(id)
+                FROM jobs
+                GROUP BY lower(title), lower(company), source
+            )
+        """)
+        deleted = cur.rowcount
+    if deleted:
+        log.info("Deduplication removed %d duplicate job rows", deleted)
+    return deleted
+
+
 # ── Applications ───────────────────────────────────────────────────────────────
 
 def log_application(app: Application) -> int:
