@@ -12,6 +12,9 @@ google-generativeai>=0.7.0  # Native Gemini SDK (fallback for gemini type)
 pdfplumber>=0.10.0          # PDF text extraction
 python-docx>=1.1.0          # DOCX read/write
 
+# ── LinkedIn (unofficial Voyager API) ─────────────────────────────────────────
+linkedin-api>=2.1.0             # pip install linkedin-api
+
 # ── Browser automation (optional — Easy Apply) ────────────────────────────────
 playwright>=1.44.0          # Headless browser for LinkedIn Easy Apply
                             # After install: `playwright install chromium`

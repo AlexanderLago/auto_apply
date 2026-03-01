@@ -23,6 +23,7 @@ def cmd_scrape(args):
     from modules.scraper.adzuna     import AdzunaScraper
     from modules.scraper.greenhouse import GreenhouseScraper
     from modules.scraper.lever      import LeverScraper
+    from modules.scraper.linkedin   import LinkedInScraper
     from modules.scraper.remotive   import RemotiveScraper
     from modules.scraper.usajobs    import USAJobsScraper
     from modules.tracker.database   import upsert_job, deduplicate_jobs
@@ -31,6 +32,7 @@ def cmd_scrape(args):
     scrapers.append(AdzunaScraper(country="us"))
     scrapers.append(RemotiveScraper())
     scrapers.append(USAJobsScraper())
+    scrapers.append(LinkedInScraper())
     scrapers += [GreenhouseScraper(token) for token in config.GREENHOUSE_BOARDS]
     scrapers += [LeverScraper(slug)       for slug  in config.LEVER_COMPANIES]
 

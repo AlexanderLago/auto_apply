@@ -32,6 +32,7 @@ with st.sidebar:
         from modules.scraper.adzuna     import AdzunaScraper
         from modules.scraper.greenhouse import GreenhouseScraper
         from modules.scraper.lever      import LeverScraper
+        from modules.scraper.linkedin   import LinkedInScraper
         from modules.scraper.remotive   import RemotiveScraper
         from modules.scraper.usajobs    import USAJobsScraper
         from modules.tracker.database   import upsert_job
@@ -42,6 +43,7 @@ with st.sidebar:
                 + [LeverScraper(s)      for s  in config.LEVER_COMPANIES]
                 + [RemotiveScraper()]
                 + [USAJobsScraper()]
+                + [LinkedInScraper()]
             )
             total = 0
             for sc in scrapers:

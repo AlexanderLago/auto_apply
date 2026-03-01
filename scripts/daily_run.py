@@ -39,11 +39,12 @@ def main():
     from modules.scraper.adzuna     import AdzunaScraper
     from modules.scraper.greenhouse import GreenhouseScraper
     from modules.scraper.lever      import LeverScraper
+    from modules.scraper.linkedin   import LinkedInScraper
     from modules.scraper.remotive   import RemotiveScraper
     from modules.scraper.usajobs    import USAJobsScraper
 
     scrapers = (
-        [AdzunaScraper(country="us"), RemotiveScraper(), USAJobsScraper()]
+        [AdzunaScraper(country="us"), RemotiveScraper(), USAJobsScraper(), LinkedInScraper()]
         + [GreenhouseScraper(t) for t in config.GREENHOUSE_BOARDS]
         + [LeverScraper(s)      for s  in config.LEVER_COMPANIES]
     )
