@@ -1,0 +1,22 @@
+# ── Core ──────────────────────────────────────────────────────────────────────
+python-dotenv>=1.0.0        # .env loading
+pydantic>=2.0.0             # data models & validation
+requests>=2.31.0            # HTTP calls (Greenhouse, Lever, Adzuna APIs)
+
+# ── LLM ───────────────────────────────────────────────────────────────────────
+anthropic>=0.25.0           # Claude (tailoring, parsing, scoring)
+
+# ── Resume parsing ────────────────────────────────────────────────────────────
+pdfplumber>=0.10.0          # PDF text extraction
+python-docx>=1.1.0          # DOCX read/write
+
+# ── Browser automation (optional — Easy Apply) ────────────────────────────────
+playwright>=1.44.0          # Headless browser for LinkedIn Easy Apply
+                            # After install: `playwright install chromium`
+
+# ── Dashboard (optional) ──────────────────────────────────────────────────────
+streamlit>=1.35.0
+pandas>=2.0.0
+
+# ── Dev / testing ─────────────────────────────────────────────────────────────
+pytest>=8.0.0

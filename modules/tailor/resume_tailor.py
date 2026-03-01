@@ -1,0 +1,134 @@
+# modules/tailor/resume_tailor.py
+# Adapts job_bot's tailoring logic for the auto_apply pipeline.
+# Input: master resume text + ParsedJD → Output: tailored resume dict + file paths.
+
+from __future__ import annotations
+import json
+import re
+from pathlib import Path
+
+import anthropic
+
+import config
+from modules.tracker.models import ParsedJD
+
+log = config.get_logger(__name__)
+
+_SYSTEM = """You are an expert ATS resume writer. Tailor the candidate's resume to the job description.
+
+RULES:
+1. NEVER fabricate experience, skills, credentials, or metrics.
+2. Only rephrase and reorder existing content using the job description's language.
+3. Preserve all dates, company names, and titles exactly.
+4. Mirror keywords from the job description wherever truthfully applicable.
+
+Return ONLY valid JSON:
+{
+  "name": "...", "email": "...", "phone": "...", "location": "...",
+  "linkedin": "...", "website": "...",
+  "summary": "3-4 sentence summary tailored to this specific role",
+  "experience": [
+    {"title": "...", "company": "...", "location": "...", "dates": "...",
+     "bullets": ["action verb + impact", "..."]}
+  ],
+  "education": [
+    {"degree": "...", "school": "...", "location": "...", "dates": "...", "details": "..."}
+  ],
+  "skills": ["Skill1", "Skill2"],
+  "certifications": ["..."],
+  "target_role": "Exact job title from the posting"
+}"""
+
+
+def tailor(
+    resume_text: str,
+    jd_text: str,
+    parsed_jd: ParsedJD,
+    output_dir: Path | None = None,
+    api_key: str = "",
+) -> dict:
+    """
+    Tailor resume_text to the given job description.
+    Returns the structured resume dict.
+    Optionally writes DOCX + PDF to output_dir if provided.
+    """
+    key = api_key or config.ANTHROPIC_API_KEY
+    if not key:
+        raise RuntimeError("ANTHROPIC_API_KEY not set")
+
+    client = anthropic.Anthropic(api_key=key)
+    user_msg = (
+        f"<resume>\n{resume_text}\n</resume>\n\n"
+        f"<job_description>\n{jd_text[:4000]}\n</job_description>\n\n"
+        f"Target role: {parsed_jd.title} at {parsed_jd.company}\n"
+        "Tailor this resume. Return only JSON."
+    )
+
+    resp = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=4096,
+        system=_SYSTEM,
+        messages=[{"role": "user", "content": user_msg}],
+    )
+
+    raw = resp.content[0].text.strip()
+    raw = re.sub(r"^```(?:json)?\s*", "", raw)
+    raw = re.sub(r"\s*```$", "", raw)
+    data = json.loads(raw)
+
+    if output_dir:
+        _write_files(data, output_dir, parsed_jd)
+
+    log.info("Resume tailored for %s at %s", parsed_jd.title, parsed_jd.company)
+    return data
+
+
+def _write_files(data: dict, output_dir: Path, parsed_jd: ParsedJD) -> tuple[Path, Path]:
+    """
+    Write DOCX and PDF. Reuses job_bot builders if available,
+    otherwise writes a plain text fallback.
+
+    Returns (docx_path, pdf_path).
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+    slug = re.sub(r"[^a-z0-9]", "", parsed_jd.company.lower()) or "company"
+    docx_path = output_dir / f"resume_{slug}.docx"
+    pdf_path  = output_dir / f"resume_{slug}.pdf"
+
+    try:
+        # Attempt to reuse job_bot builders if on the same machine
+        import sys
+        sys.path.insert(0, str(Path(__file__).parents[3] / "job_bot"))
+        from utils.docx_builder import build_docx
+        from utils.pdf_builder  import build_pdf
+        docx_path.write_bytes(build_docx(data))
+        pdf_path.write_bytes(build_pdf(data))
+        log.info("Wrote %s and %s", docx_path, pdf_path)
+    except ImportError:
+        # Fallback: plain text dump
+        txt = "\n\n".join([
+            data.get("name", ""),
+            data.get("summary", ""),
+            *[f"{e['title']} @ {e['company']}\n" + "\n".join(e.get("bullets", []))
+              for e in data.get("experience", [])],
+        ])
+        docx_path.with_suffix(".txt").write_text(txt)
+        log.warning("job_bot builders not found — wrote plain text fallback")
+
+    return docx_path, pdf_path
+
+
+def load_master_resume() -> str:
+    """Load master resume text from the configured path."""
+    path = config.MASTER_RESUME
+    if not path.exists():
+        raise FileNotFoundError(f"Master resume not found at {path}")
+    suffix = path.suffix.lower()
+    if suffix == ".pdf":
+        import pdfplumber
+        with pdfplumber.open(path) as pdf:
+            return "\n".join(p.extract_text() or "" for p in pdf.pages)
+    if suffix == ".docx":
+        from docx import Document
+        return "\n".join(p.text for p in Document(path).paragraphs)
+    return path.read_text(encoding="utf-8")

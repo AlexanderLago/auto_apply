@@ -1,0 +1,25 @@
+# Secrets
+.env
+
+# Database & logs (personal data — don't commit)
+data/*.db
+logs/*.log
+
+# Resumes (personal data — don't commit)
+resumes/*.pdf
+resumes/*.docx
+resumes/*.txt
+resumes/tailored/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+*.egg-info/
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db
