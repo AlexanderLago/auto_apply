@@ -67,32 +67,24 @@ def tailor(
 
 
 def _write_files(data: dict, output_dir: Path, parsed_jd: ParsedJD):
-    """
-    Write DOCX and PDF. Reuses job_bot builders if available,
-    otherwise writes a plain text fallback.
-    """
-    import sys
+    """Write DOCX (and PDF if possible) to output_dir. Returns (docx_path, pdf_path)."""
+    from modules.tailor.docx_builder import build_docx
+
     output_dir.mkdir(parents=True, exist_ok=True)
     slug = re.sub(r"[^a-z0-9]", "", parsed_jd.company.lower()) or "company"
     docx_path = output_dir / f"resume_{slug}.docx"
     pdf_path  = output_dir / f"resume_{slug}.pdf"
 
+    docx_path.write_bytes(build_docx(data))
+    log.info("Wrote %s", docx_path.name)
+
     try:
-        sys.path.insert(0, str(Path(__file__).parents[3] / "job_bot"))
-        from utils.docx_builder import build_docx
-        from utils.pdf_builder  import build_pdf
-        docx_path.write_bytes(build_docx(data))
+        from modules.tailor.pdf_builder import build_pdf
         pdf_path.write_bytes(build_pdf(data))
-        log.info("Wrote %s and %s", docx_path, pdf_path)
-    except ImportError:
-        txt = "\n\n".join([
-            data.get("name", ""),
-            data.get("summary", ""),
-            *[f"{e['title']} @ {e['company']}\n" + "\n".join(e.get("bullets", []))
-              for e in data.get("experience", [])],
-        ])
-        docx_path.with_suffix(".txt").write_text(txt)
-        log.warning("job_bot builders not found — wrote plain text fallback")
+        log.info("Wrote %s", pdf_path.name)
+    except Exception as e:
+        log.warning("PDF generation skipped (%s) — DOCX only", e)
+        pdf_path = None
 
     return docx_path, pdf_path
 
