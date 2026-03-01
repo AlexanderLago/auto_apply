@@ -2,6 +2,7 @@
 # Adzuna REST API — same integration as job_bot, reused here.
 # Free tier: 25,000 requests/month.
 
+from __future__ import annotations
 from datetime import datetime
 from modules.scraper.base import BaseScraper
 from modules.tracker.models import Job

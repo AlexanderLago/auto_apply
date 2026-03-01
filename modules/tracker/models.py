@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 from datetime import datetime
-from typing import Optional
+from typing import Dict, List, Optional
 from pydantic import BaseModel, Field
 
 
@@ -18,8 +18,8 @@ class Job(BaseModel):
     work_type: str = "unknown"                  # 'remote' | 'hybrid' | 'onsite' | 'unknown'
     url: str = ""
     description_raw: str = ""
-    skills_required: list[str] = Field(default_factory=list)
-    skills_nice_to_have: list[str] = Field(default_factory=list)
+    skills_required: List[str] = Field(default_factory=list)
+    skills_nice_to_have: List[str] = Field(default_factory=list)
     salary_min: Optional[float] = None
     salary_max: Optional[float] = None
     posted_date: Optional[str] = None
@@ -27,7 +27,7 @@ class Job(BaseModel):
 
     # Set after scoring
     fit_score: Optional[float] = None
-    fit_breakdown: Optional[dict] = None
+    fit_breakdown: Optional[Dict] = None
     status: str = "new"                         # 'new'|'scored'|'tailored'|'applied'|'rejected'|'offer'|'ignored'
 
 
@@ -46,8 +46,8 @@ class ParsedJD(BaseModel):
     """Structured output from the JD parser LLM call."""
     title: str
     company: str
-    skills_required: list[str]
-    skills_nice_to_have: list[str]
+    skills_required: List[str]
+    skills_nice_to_have: List[str]
     years_experience: Optional[int] = None
     education_required: str = ""
     work_type: str = "unknown"
@@ -58,9 +58,9 @@ class ParsedJD(BaseModel):
 class FitResult(BaseModel):
     """Output of the fit scorer."""
     score: float                                # 0–100
-    breakdown: dict[str, float]                 # {'skills': 82, 'experience': 70, ...}
-    strengths: list[str]
-    gaps: list[str]
+    breakdown: Dict[str, float]
+    strengths: List[str]
+    gaps: List[str]
     recommendation: str                         # 'apply' | 'tailor_and_apply' | 'skip'
 
 

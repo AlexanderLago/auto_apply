@@ -1,7 +1,9 @@
 # modules/scraper/base.py — Abstract base class all scrapers must implement.
 # Adding a new job source = subclass BaseScraper, implement scrape().
 
+from __future__ import annotations
 from abc import ABC, abstractmethod
+from typing import List
 from modules.tracker.models import Job
 
 
@@ -22,7 +24,7 @@ class BaseScraper(ABC):
         keyword: str = "",
         location: str = "",
         max_results: int = 50,
-    ) -> list[Job]:
+    ) -> List[Job]:
         """
         Fetch job listings and return them as Job model instances.
         Should never raise — log errors and return partial results.

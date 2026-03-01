@@ -2,6 +2,7 @@
 # Greenhouse has a public JSON API — no auth, no browser needed.
 # Docs: https://developers.greenhouse.io/job-board.html
 
+from __future__ import annotations
 from datetime import datetime
 from modules.scraper.base import BaseScraper
 from modules.tracker.models import Job

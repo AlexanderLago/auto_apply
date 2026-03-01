@@ -2,6 +2,7 @@
 # Lever also has a public JSON API — no auth, no browser needed.
 # Docs: https://hire.lever.co/developer/postings
 
+from __future__ import annotations
 from datetime import datetime
 from modules.scraper.base import BaseScraper
 from modules.tracker.models import Job

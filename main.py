@@ -39,36 +39,72 @@ def cmd_scrape(args):
             total += 1
 
     log.info("Scraped %d jobs total", total)
-    print(f"✓ Scraped {total} jobs.")
+    print(f"[OK] Scraped {total} jobs.")
+
+
+def _load_candidate_profile() -> dict:
+    """Parse master resume into a structured profile (cached after first run)."""
+    from modules.tailor.resume_tailor  import load_master_resume
+    from modules.parser.candidate_parser import parse_candidate, load_cached_profile
+
+    cached = load_cached_profile()
+    if cached:
+        return cached
+    resume_text = load_master_resume()
+    return parse_candidate(resume_text)
+
+
+def cmd_profile(args):
+    """Parse master resume and display the extracted candidate profile."""
+    from modules.tailor.resume_tailor    import load_master_resume
+    from modules.parser.candidate_parser import parse_candidate
+
+    resume_text = load_master_resume()
+    profile = parse_candidate(resume_text, force=getattr(args, "force", False))
+
+    print(f"\n{profile.get('name')}  |  {profile.get('location')}")
+    print(f"Email   : {profile.get('email')}")
+    print(f"Edu     : {profile.get('education')}  ({profile.get('education_level')})")
+    print(f"Exp     : {profile.get('years_experience')} years experience")
+    print(f"Titles  : {', '.join(profile.get('titles', []))}")
+    print(f"Skills ({len(profile.get('skills', []))}): {', '.join(profile.get('skills', []))}")
+    print(f"\n{profile.get('summary')}\n")
 
 
 def cmd_score(args):
     """Parse JDs and score all 'new' jobs against the master resume."""
-    from modules.tracker.database import get_jobs, save_fit_result, update_job_status
+    from modules.tracker.database import get_jobs, save_fit_result
     from modules.parser.jd_parser import parse_jd
     from modules.scorer.fit_scorer import score
-    from modules.tailor.resume_tailor import load_master_resume
 
-    resume_text = load_master_resume()
-
-    # Derive candidate profile from resume (simple extraction — improve as needed)
-    candidate_skills = _extract_skills_from_text(resume_text)
-    candidate_years  = _extract_years_from_text(resume_text)
+    profile = _load_candidate_profile()
+    candidate_skills = profile.get("skills", [])
+    candidate_years  = profile.get("years_experience", 0)
+    candidate_edu    = profile.get("education", "")
+    candidate_loc    = profile.get("location", "")
 
     jobs = get_jobs(status="new", limit=args.limit)
-    log.info("Scoring %d new jobs", len(jobs))
+    if not jobs:
+        print("No new jobs to score. Run 'scrape' first.")
+        return
+
+    log.info("Scoring %d new jobs for %s", len(jobs), profile.get("name", "candidate"))
+    print(f"\nScoring {len(jobs)} jobs for {profile.get('name')} "
+          f"({len(candidate_skills)} skills, {candidate_years} yrs exp)\n")
 
     for job_row in jobs:
         parsed = parse_jd(job_row["description_raw"])
         result = score(
             candidate_skills=candidate_skills,
             candidate_experience_years=candidate_years,
-            candidate_education="Bachelor's",   # TODO: extract from resume
-            candidate_location="",
+            candidate_education=candidate_edu,
+            candidate_location=candidate_loc,
             parsed_jd=parsed,
         )
         save_fit_result(job_row["id"], result)
-        print(f"  [{result.score:5.1f}] {job_row['title']} @ {job_row['company']} — {result.recommendation}")
+        filled = int(result.score / 10)
+        bar = "#" * filled + "-" * (10 - filled)
+        print(f"  [{bar}] {result.score:5.1f}  {job_row['title'][:40]:<40} @ {job_row['company'][:25]:<25}  -> {result.recommendation}")
 
 
 def cmd_tailor(args):
@@ -87,7 +123,7 @@ def cmd_tailor(args):
         try:
             tailor(resume_text, job_row["description_raw"], parsed, output_dir=output_dir)
             update_job_status(job_row["id"], "tailored")
-            print(f"  ✓ Tailored: {job_row['title']} @ {job_row['company']}")
+            print(f"  [OK] Tailored: {job_row['title']} @ {job_row['company']}")
         except Exception as e:
             log.error("Tailor failed for job %d: %s", job_row["id"], e)
 
@@ -119,7 +155,7 @@ def cmd_apply(args):
             app = bot.apply(job, job_row["id"])
             if app:
                 log_application(app)
-                print(f"  ✓ Applied: {job_row['title']} @ {job_row['company']}")
+                print(f"  [OK] Applied: {job_row['title']} @ {job_row['company']}")
 
 
 def cmd_dashboard(_args):
@@ -129,39 +165,16 @@ def cmd_dashboard(_args):
                     str(config.ROOT_DIR / "dashboard" / "app.py")])
 
 
-# ── Helpers ────────────────────────────────────────────────────────────────────
-
-def _extract_skills_from_text(text: str) -> list[str]:
-    """
-    Naive keyword extraction from resume text.
-    Replace with LLM-based extraction for better accuracy.
-    """
-    _KNOWN = [
-        "Python", "SQL", "Excel", "Tableau", "Power BI", "R", "Java", "JavaScript",
-        "TypeScript", "React", "Node.js", "AWS", "GCP", "Azure", "Docker", "Kubernetes",
-        "Spark", "Pandas", "NumPy", "scikit-learn", "TensorFlow", "PyTorch",
-        "Machine Learning", "Data Analysis", "Statistics", "A/B Testing",
-        "Product Management", "Agile", "Scrum", "Figma", "Photoshop",
-    ]
-    text_lower = text.lower()
-    return [s for s in _KNOWN if s.lower() in text_lower]
-
-
-def _extract_years_from_text(text: str) -> int:
-    """Very rough heuristic — count distinct year mentions in experience section."""
-    import re
-    years = re.findall(r'\b(19|20)\d{2}\b', text)
-    if len(years) >= 2:
-        span = int(max(years)) - int(min(years))
-        return max(0, span)
-    return 0
-
-
 # ── CLI ────────────────────────────────────────────────────────────────────────
 
 def main():
     parser = argparse.ArgumentParser(prog="auto_apply", description="Job application automation")
     sub = parser.add_subparsers(dest="cmd", required=True)
+
+    # profile
+    p_profile = sub.add_parser("profile", help="Parse master resume and show candidate profile")
+    p_profile.add_argument("--force", action="store_true", help="Re-parse even if cached")
+    p_profile.set_defaults(func=cmd_profile)
 
     # scrape
     p_scrape = sub.add_parser("scrape", help="Scrape jobs from all sources")

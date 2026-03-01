@@ -4,7 +4,7 @@
 import json
 import sqlite3
 from contextlib import contextmanager
-from typing import Optional
+from typing import Dict, List, Optional
 
 import config
 from modules.tracker.models import SCHEMA_SQL, Job, Application, FitResult
@@ -76,7 +76,7 @@ def update_job_status(job_id: int, status: str) -> None:
 
 
 def get_jobs(status: Optional[str] = None, min_score: Optional[float] = None,
-             limit: int = 100) -> list[dict]:
+             limit: int = 100) -> List[Dict]:
     """Fetch jobs, optionally filtered by status and minimum fit score."""
     clauses, params = [], []
     if status:
@@ -111,7 +111,7 @@ def log_application(app: Application) -> int:
         return cur.lastrowid
 
 
-def get_applications(outcome: Optional[str] = None) -> list[dict]:
+def get_applications(outcome: Optional[str] = None) -> List[Dict]:
     clauses, params = [], []
     if outcome:
         clauses.append("a.outcome = ?")
