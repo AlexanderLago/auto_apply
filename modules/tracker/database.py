@@ -63,11 +63,15 @@ def upsert_job(job: Job) -> int:
 
 
 def save_fit_result(job_id: int, result: FitResult) -> None:
+    # Store breakdown scores plus narrative keys so we don't need extra columns
+    payload = dict(result.breakdown)
+    payload["_strengths"] = result.strengths
+    payload["_gaps"]      = result.gaps
     with _conn() as con:
         con.execute("""
             UPDATE jobs SET fit_score=?, fit_breakdown=?, status='scored'
             WHERE id=?
-        """, (result.score, json.dumps(result.breakdown), job_id))
+        """, (result.score, json.dumps(payload), job_id))
 
 
 def update_job_status(job_id: int, status: str) -> None:

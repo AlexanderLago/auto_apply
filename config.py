@@ -22,6 +22,8 @@ CEREBRAS_API_KEY  = os.getenv("CEREBRAS_API_KEY", "")
 GEMINI_API_KEY    = os.getenv("GEMINI_API_KEY", "")
 ADZUNA_APP_ID     = os.getenv("ADZUNA_APP_ID", "")
 ADZUNA_APP_KEY    = os.getenv("ADZUNA_APP_KEY", "")
+USAJOBS_API_KEY   = os.getenv("USAJOBS_API_KEY", "")
+USAJOBS_EMAIL     = os.getenv("USAJOBS_EMAIL",   "")
 
 # ── Scraping targets ───────────────────────────────────────────────────────────
 GREENHOUSE_BOARDS = [b.strip() for b in os.getenv("GREENHOUSE_BOARDS", "").split(",") if b.strip()]
@@ -38,6 +40,13 @@ WEIGHTS = {
 # ── Thresholds ─────────────────────────────────────────────────────────────────
 AUTO_APPLY_MIN_SCORE  = int(os.getenv("AUTO_APPLY_MIN_SCORE", 75))
 MIN_SCORE_TO_TAILOR   = int(os.getenv("MIN_SCORE_TO_TAILOR",  65))
+
+# ── Email digest ───────────────────────────────────────────────────────────────
+SMTP_HOST    = os.getenv("SMTP_HOST",    "smtp.gmail.com")
+SMTP_PORT    = os.getenv("SMTP_PORT",    "587")
+SMTP_USER    = os.getenv("SMTP_USER",    "")
+SMTP_PASS    = os.getenv("SMTP_PASS",    "")   # Gmail: use an App Password
+NOTIFY_EMAIL = os.getenv("NOTIFY_EMAIL", "")
 
 # ── Applicant info (for EasyApplyBot) ──────────────────────────────────────────
 APPLICANT_FIRST_NAME  = os.getenv("APPLICANT_FIRST_NAME", "")

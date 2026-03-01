@@ -24,11 +24,13 @@ def cmd_scrape(args):
     from modules.scraper.greenhouse import GreenhouseScraper
     from modules.scraper.lever      import LeverScraper
     from modules.scraper.remotive   import RemotiveScraper
+    from modules.scraper.usajobs    import USAJobsScraper
     from modules.tracker.database   import upsert_job, deduplicate_jobs
 
     scrapers = []
     scrapers.append(AdzunaScraper(country="us"))
     scrapers.append(RemotiveScraper())
+    scrapers.append(USAJobsScraper())
     scrapers += [GreenhouseScraper(token) for token in config.GREENHOUSE_BOARDS]
     scrapers += [LeverScraper(slug)       for slug  in config.LEVER_COMPANIES]
 
@@ -117,25 +119,35 @@ def cmd_score(args):
         filled = int(result.score / 10)
         bar = "#" * filled + "-" * (10 - filled)
         print(f"  [{bar}] {result.score:5.1f}  {job_row['title'][:40]:<40} @ {job_row['company'][:25]:<25}  -> {result.recommendation}")
+        if result.strengths:
+            print(f"          + {result.strengths[0]}")
+        if result.gaps:
+            print(f"          - {result.gaps[0]}")
     if skipped:
         print(f"  (skipped {skipped} jobs with sparse descriptions)")
 
 
 def cmd_tailor(args):
-    """Tailor master resume for all scored jobs above the threshold."""
-    from modules.tracker.database   import get_jobs, update_job_status
-    from modules.parser.jd_parser   import parse_jd
+    """Tailor master resume + generate cover letter for top scored jobs."""
+    from modules.tracker.database    import get_jobs, update_job_status
+    from modules.parser.jd_parser    import parse_jd
     from modules.tailor.resume_tailor import tailor, load_master_resume
+    from modules.tailor.cover_letter  import generate as gen_cover, save as save_cover
 
+    profile     = _load_candidate_profile()
     resume_text = load_master_resume()
     output_dir  = config.ROOT_DIR / "resumes" / "tailored"
-    jobs = get_jobs(status="scored", min_score=args.min_score, limit=args.limit)
+    cl_dir      = config.ROOT_DIR / "resumes" / "cover_letters"
+    jobs        = get_jobs(status="scored", min_score=args.min_score, limit=args.limit)
     log.info("Tailoring for %d jobs", len(jobs))
 
     for job_row in jobs:
         parsed = parse_jd(job_row["description_raw"])
         try:
             tailor(resume_text, job_row["description_raw"], parsed, output_dir=output_dir)
+            cl_text = gen_cover(resume_text, job_row["description_raw"], parsed,
+                                candidate_name=profile.get("name", ""))
+            save_cover(cl_text, cl_dir, parsed)
             update_job_status(job_row["id"], "tailored")
             print(f"  [OK] Tailored: {job_row['title']} @ {job_row['company']}")
         except Exception as e:

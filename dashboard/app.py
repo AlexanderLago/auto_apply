@@ -33,6 +33,7 @@ with st.sidebar:
         from modules.scraper.greenhouse import GreenhouseScraper
         from modules.scraper.lever      import LeverScraper
         from modules.scraper.remotive   import RemotiveScraper
+        from modules.scraper.usajobs    import USAJobsScraper
         from modules.tracker.database   import upsert_job
         with st.spinner("Scraping..."):
             scrapers = (
@@ -40,6 +41,7 @@ with st.sidebar:
                 + [GreenhouseScraper(t) for t in config.GREENHOUSE_BOARDS]
                 + [LeverScraper(s)      for s  in config.LEVER_COMPANIES]
                 + [RemotiveScraper()]
+                + [USAJobsScraper()]
             )
             total = 0
             for sc in scrapers:
@@ -87,10 +89,14 @@ with st.sidebar:
 
     # ── Tailor ──────────────────────────────────────────────────────────────────
     if st.button("Tailor Top Jobs", use_container_width=True):
-        from modules.parser.jd_parser      import parse_jd
-        from modules.tailor.resume_tailor  import tailor, load_master_resume
+        from modules.parser.jd_parser       import parse_jd
+        from modules.tailor.resume_tailor   import tailor, load_master_resume
+        from modules.tailor.cover_letter    import generate as gen_cover, save as save_cover
+        from modules.parser.candidate_parser import load_cached_profile, parse_candidate
         output_dir = config.ROOT_DIR / "resumes" / "tailored"
-        with st.spinner("Tailoring..."):
+        cl_dir     = config.ROOT_DIR / "resumes" / "cover_letters"
+        with st.spinner("Tailoring + writing cover letters..."):
+            profile = load_cached_profile() or parse_candidate(load_master_resume())
             resume_text = load_master_resume()
             jobs = get_jobs(status="scored", min_score=config.MIN_SCORE_TO_TAILOR, limit=10)
             count, failed = 0, 0
@@ -98,6 +104,9 @@ with st.sidebar:
                 try:
                     parsed = parse_jd(row["description_raw"])
                     tailor(resume_text, row["description_raw"], parsed, output_dir=output_dir)
+                    cl_text = gen_cover(resume_text, row["description_raw"], parsed,
+                                        candidate_name=profile.get("name", ""))
+                    save_cover(cl_text, cl_dir, parsed)
                     update_job_status(row["id"], "tailored")
                     count += 1
                 except Exception as e:
@@ -126,7 +135,7 @@ c5.metric("Ignored",    _count("ignored"))
 st.divider()
 
 # ── Main tabs ───────────────────────────────────────────────────────────────────
-tab_jobs, tab_detail, tab_apps = st.tabs(["Jobs", "Job Detail", "Applications"])
+tab_jobs, tab_detail, tab_apps, tab_cl = st.tabs(["Jobs", "Job Detail", "Applications", "Cover Letters"])
 
 with tab_jobs:
     min_score = st.slider("Min fit score", 0, 100, 50)
@@ -171,15 +180,31 @@ with tab_detail:
 
         with col_r:
             st.markdown("**Fit Breakdown**")
+            strengths, gaps = [], []
             if row.get("fit_breakdown"):
                 try:
                     bd = json.loads(row["fit_breakdown"]) if isinstance(row["fit_breakdown"], str) \
                          else row["fit_breakdown"]
+                    strengths = bd.pop("_strengths", [])
+                    gaps      = bd.pop("_gaps", [])
                     for k, v in bd.items():
                         st.metric(k.capitalize(), f"{float(v):.0f} / 100")
                 except Exception:
                     pass
             st.metric("Overall Score", f"{row['fit_score']:.0f} / 100")
+
+        if strengths or gaps:
+            col_s, col_g = st.columns(2)
+            with col_s:
+                if strengths:
+                    st.markdown("**Strengths**")
+                    for s in strengths:
+                        st.markdown(f"- {s}")
+            with col_g:
+                if gaps:
+                    st.markdown("**Gaps**")
+                    for g in gaps:
+                        st.markdown(f"- {g}")
 
         if row.get("description_raw"):
             with st.expander("Full job description"):
@@ -192,3 +217,17 @@ with tab_apps:
         st.dataframe(pd.DataFrame(apps), use_container_width=True, hide_index=True)
     else:
         st.info("No applications logged yet.")
+
+with tab_cl:
+    st.subheader("Cover Letters")
+    cl_dir = config.ROOT_DIR / "resumes" / "cover_letters"
+    cl_files = sorted(cl_dir.glob("cover_letter_*.txt")) if cl_dir.exists() else []
+    if not cl_files:
+        st.info("No cover letters yet — run Tailor from the sidebar.")
+    else:
+        chosen = st.selectbox("Select cover letter", cl_files,
+                              format_func=lambda p: p.stem.replace("cover_letter_", "").capitalize())
+        if chosen:
+            text = chosen.read_text(encoding="utf-8")
+            st.text_area("Cover letter", text, height=350)
+            st.download_button("Download .txt", text, file_name=chosen.name)
