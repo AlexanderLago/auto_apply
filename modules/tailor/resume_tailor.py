@@ -1,16 +1,14 @@
 # modules/tailor/resume_tailor.py
 # Adapts job_bot's tailoring logic for the auto_apply pipeline.
-# Input: master resume text + ParsedJD → Output: tailored resume dict + file paths.
+# Input: master resume text + ParsedJD -> Output: tailored resume dict + file paths.
 
 from __future__ import annotations
-import json
 import re
 from pathlib import Path
 
-import anthropic
-
 import config
 from modules.tracker.models import ParsedJD
+from modules.llm.client import call_llm, parse_json_response
 
 log = config.get_logger(__name__)
 
@@ -44,19 +42,13 @@ def tailor(
     resume_text: str,
     jd_text: str,
     parsed_jd: ParsedJD,
-    output_dir: Path | None = None,
-    api_key: str = "",
+    output_dir: Path = None,
 ) -> dict:
     """
     Tailor resume_text to the given job description.
     Returns the structured resume dict.
     Optionally writes DOCX + PDF to output_dir if provided.
     """
-    key = api_key or config.ANTHROPIC_API_KEY
-    if not key:
-        raise RuntimeError("ANTHROPIC_API_KEY not set")
-
-    client = anthropic.Anthropic(api_key=key)
     user_msg = (
         f"<resume>\n{resume_text}\n</resume>\n\n"
         f"<job_description>\n{jd_text[:4000]}\n</job_description>\n\n"
@@ -64,17 +56,8 @@ def tailor(
         "Tailor this resume. Return only JSON."
     )
 
-    resp = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=4096,
-        system=_SYSTEM,
-        messages=[{"role": "user", "content": user_msg}],
-    )
-
-    raw = resp.content[0].text.strip()
-    raw = re.sub(r"^```(?:json)?\s*", "", raw)
-    raw = re.sub(r"\s*```$", "", raw)
-    data = json.loads(raw)
+    raw = call_llm(_SYSTEM, user_msg, max_tokens=4096, temperature=0.3)
+    data = parse_json_response(raw)
 
     if output_dir:
         _write_files(data, output_dir, parsed_jd)
@@ -83,21 +66,18 @@ def tailor(
     return data
 
 
-def _write_files(data: dict, output_dir: Path, parsed_jd: ParsedJD) -> tuple[Path, Path]:
+def _write_files(data: dict, output_dir: Path, parsed_jd: ParsedJD):
     """
     Write DOCX and PDF. Reuses job_bot builders if available,
     otherwise writes a plain text fallback.
-
-    Returns (docx_path, pdf_path).
     """
+    import sys
     output_dir.mkdir(parents=True, exist_ok=True)
     slug = re.sub(r"[^a-z0-9]", "", parsed_jd.company.lower()) or "company"
     docx_path = output_dir / f"resume_{slug}.docx"
     pdf_path  = output_dir / f"resume_{slug}.pdf"
 
     try:
-        # Attempt to reuse job_bot builders if on the same machine
-        import sys
         sys.path.insert(0, str(Path(__file__).parents[3] / "job_bot"))
         from utils.docx_builder import build_docx
         from utils.pdf_builder  import build_pdf
@@ -105,7 +85,6 @@ def _write_files(data: dict, output_dir: Path, parsed_jd: ParsedJD) -> tuple[Pat
         pdf_path.write_bytes(build_pdf(data))
         log.info("Wrote %s and %s", docx_path, pdf_path)
     except ImportError:
-        # Fallback: plain text dump
         txt = "\n\n".join([
             data.get("name", ""),
             data.get("summary", ""),

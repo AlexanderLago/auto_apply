@@ -1,13 +1,10 @@
 # modules/parser/jd_parser.py
-# Uses Claude to extract structured data from a raw job description.
+# Uses the multi-provider LLM client to extract structured data from a raw JD.
 # Returns a ParsedJD model — used by the scorer and tailor.
-
-import json
-import re
-import anthropic
 
 import config
 from modules.tracker.models import ParsedJD
+from modules.llm.client import call_llm, parse_json_response
 
 log = config.get_logger(__name__)
 
@@ -28,31 +25,19 @@ Rules:
 - skills_required: only hard requirements (must-have)
 - skills_nice_to_have: preferred/bonus qualifications
 - years_experience: integer, null if not specified
-- Normalise skill names (e.g. 'MS Excel' → 'Excel', 'node.js' → 'Node.js')"""
+- Normalise skill names (e.g. 'MS Excel' -> 'Excel', 'node.js' -> 'Node.js')"""
 
 
-def parse_jd(description: str, api_key: str = "") -> ParsedJD:
+def parse_jd(description: str) -> ParsedJD:
     """
-    Parse a raw job description into structured fields using Claude.
-    Falls back to a blank ParsedJD on any error.
+    Parse a raw job description into structured fields.
+    Uses the multi-provider LLM chain. Falls back to a blank ParsedJD on error.
     """
-    key = api_key or config.ANTHROPIC_API_KEY
-    if not key:
-        log.error("No Anthropic API key — cannot parse JD")
-        return ParsedJD(title="", company="", skills_required=[], skills_nice_to_have=[])
-
-    client = anthropic.Anthropic(api_key=key)
     try:
-        resp = client.messages.create(
-            model="claude-haiku-4-5-20251001",   # fast + cheap for parsing
-            max_tokens=1024,
-            system=_SYSTEM,
-            messages=[{"role": "user", "content": description[:6000]}],
-        )
-        raw = resp.content[0].text.strip()
-        raw = re.sub(r"^```(?:json)?\s*", "", raw)
-        raw = re.sub(r"\s*```$", "", raw)
-        data = json.loads(raw)
+        raw = call_llm(_SYSTEM, description[:6000], max_tokens=1024)
+        data = parse_json_response(raw)
+        # Drop null values so Pydantic model defaults kick in for optional string fields
+        data = {k: v for k, v in data.items() if v is not None}
         return ParsedJD(**data)
     except Exception as e:
         log.warning("JD parse failed: %s", e)

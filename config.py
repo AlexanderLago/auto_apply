@@ -17,6 +17,9 @@ MASTER_RESUME     = ROOT_DIR / os.getenv("MASTER_RESUME_PATH", "resumes/master_r
 
 # ── API keys ───────────────────────────────────────────────────────────────────
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+GROQ_API_KEY      = os.getenv("GROQ_API_KEY", "")
+CEREBRAS_API_KEY  = os.getenv("CEREBRAS_API_KEY", "")
+GEMINI_API_KEY    = os.getenv("GEMINI_API_KEY", "")
 ADZUNA_APP_ID     = os.getenv("ADZUNA_APP_ID", "")
 ADZUNA_APP_KEY    = os.getenv("ADZUNA_APP_KEY", "")
 
