@@ -20,6 +20,7 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 GROQ_API_KEY      = os.getenv("GROQ_API_KEY", "")
 CEREBRAS_API_KEY  = os.getenv("CEREBRAS_API_KEY", "")
 GEMINI_API_KEY    = os.getenv("GEMINI_API_KEY", "")
+PROXY_LIST        = [p.strip() for p in os.getenv("PROXY_LIST", "").split(",") if p.strip()]
 LINKEDIN_EMAIL    = os.getenv("LINKEDIN_EMAIL", "")
 LINKEDIN_PASS     = os.getenv("LINKEDIN_PASS",  "")
 ADZUNA_APP_ID     = os.getenv("ADZUNA_APP_ID", "")
