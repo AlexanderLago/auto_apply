@@ -1,0 +1,11 @@
+Dear Hiring Manager,
+
+I'm drawn to Chime's commitment to safeguarding member assets and ensuring regulatory excellence, particularly through the development of data-driven products that prioritize security awareness and adoption. The Trust & Safety organization's mission to make Chime the most trusted financial partner resonates with my own passion for data governance and analytics, and I'm excited about the opportunity to leverage my expertise to drive business and experience implications through data insights.
+
+As a seasoned data governance and analytics professional, I've consistently delivered results that align with the key requirements of this role. For instance, as a Quantitative Analyst (Data Steward) at the Federal Reserve Bank of Philadelphia, I designed and implemented Python scripts to automate data validation and integrity checks, improving data quality and ensuring compliance with vendor agreements. I also defined and operationalized data governance processes, including access standards, usage policies, and stewardship workflows across multiple teams. Additionally, I led technical training on datasets for Federal Reserve staff, fostering understanding of data governance practices and correct dataset usage. These achievements demonstrate my ability to partner widely with product, engineering, research, and design teams to translate insights into business and experience implications.
+
+I'm confident that my expertise in data governance, analytics, and automation, combined with my passion for telling stories with data, make me an ideal fit for this role. I'm excited about the opportunity to drive a data-driven, test-and-learn culture at Chime and contribute to the development of products that build security awareness and adoption among members. I'm ready to collaborate with analysts and other functions to bridge business questions and technical solutions, and I'm eager to join Chime's mission to make it the most trusted financial partner.
+
+Sincerely,
+Alexander Lago
+alexanderlago11@gmail.com

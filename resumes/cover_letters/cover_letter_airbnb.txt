@@ -1,0 +1,11 @@
+Dear Hiring Manager,
+
+I'm drawn to Airbnb's commitment to fostering authentic connections between hosts and guests, and I'm excited about the opportunity to leverage my data governance and analytics expertise to support the Homes Supply organization in France, Netherlands, and Belgium. As a seasoned data professional with a passion for driving business decisions through data insights, I'm confident that my skills and experience make me an ideal fit for this role.
+
+With over three years of experience in data governance and risk management, I've developed a strong track record of designing and implementing data quality processes, ensuring compliance with regulatory requirements, and leading technical training sessions for large teams. For example, at the Federal Reserve Bank of Philadelphia, I designed and led internal trainings on data governance, resulting in a 95% attendance rate and improved data quality across multiple teams. Additionally, I automated research tasks using Python and SQL, increasing productivity by 30% and improving data accuracy by 25%. I'm confident that my expertise in data governance, analytics, and automation will enable me to make a significant impact at Airbnb.
+
+As a detail-oriented and results-driven professional, I'm excited about the opportunity to join Airbnb's Homes Supply organization and support the local teams in executing their local optimization campaigns. With my strong analytical skills, technical expertise, and passion for driving business decisions through data insights, I'm confident that I can provide valuable insights and recommendations to support the team's strategic priorities. I'm eager to bring my skills and experience to Airbnb and contribute to the company's mission of fostering authentic connections between hosts and guests.
+
+Sincerely,
+Alexander Lago
+alexanderlago11@gmail.com

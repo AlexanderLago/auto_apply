@@ -1,0 +1,11 @@
+Dear Hiring Manager,
+
+I'm drawn to Lyft's commitment to creating a work environment where all team members belong and have the opportunity to thrive. As a data governance and analytics professional, I'm excited about the prospect of joining the Marketplace Pricing team and contributing my expertise to drive business growth and financial metrics. I'm particularly intrigued by the opportunity to work with cross-functional stakeholders to analyze and improve existing product and financial levers leveraged in Lyft's pricing strategy.
+
+In my current role as a Quantitative Analyst (Data Steward) at the Federal Reserve Bank of Philadelphia, I've developed a strong track record of analytical problem-solving and process-driven thinking. I've designed and implemented Python scripts to automate data validation and integrity checks, improving data quality and ensuring compliance with vendor agreements. I've also led technical training on datasets for Federal Reserve staff, fostering understanding of data governance practices and correct dataset usage. Additionally, as a Research Analyst, I automated research tasks using Python and SQL, such as querying data and regression analysis. These experiences have equipped me with the skills to drive Pricing and marketplace operations, provide world-class analysis, monitoring, and reporting to stakeholders, and analyze marketplace product and financial levers.
+
+I'm confident that my expertise in data governance, analytics, and process-driven thinking make me an ideal fit for the Marketplace Pricing Analyst role at Lyft. I'm excited about the opportunity to join a high-growth environment and contribute to delivering strategic recommendations on experimentation and product improvements. I'm a detail-oriented, analytical thought leader with a proven track record of driving business growth and financial metrics, and I'm ready to roll up my sleeves and get stuff done.
+
+Sincerely,
+Alexander Lago
+alexanderlago11@gmail.com

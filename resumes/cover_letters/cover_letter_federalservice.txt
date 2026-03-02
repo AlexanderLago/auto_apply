@@ -1,0 +1,11 @@
+Dear Hiring Manager,
+
+I'm drawn to the Federal Service's commitment to leveraging data-driven insights to inform decision-making and drive positive change. As a seasoned data governance professional, I'm excited about the prospect of joining an organization that prioritizes the effective use of data to drive results.
+
+Throughout my tenure as a Quantitative Analyst (Data Steward) at the Federal Reserve Bank of Philadelphia, I've developed a strong track record of delivering high-impact results. Notably, I've automated data validation and integrity checks using Python scripts, resulting in a 30% reduction in data quality issues. Additionally, I've designed and led internal training sessions on data governance, reaching over 100 Federal Reserve staff members. My expertise in data lineage, data dictionaries, and access controls has also enabled me to operationalize data governance processes, ensuring compliance with vendor agreements and regulatory requirements.
+
+With a Master's degree in Economics from Rutgers University and a proven ability to analyze complex data sets, I'm confident in my ability to bring value to the Federal Service as a Subject Matter Expert. I'm eager to leverage my skills and experience to drive business outcomes and contribute to the organization's mission.
+
+Sincerely,
+Alexander Lago
+alexanderlago11@gmail.com

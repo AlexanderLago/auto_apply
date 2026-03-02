@@ -1,0 +1,11 @@
+Dear Hiring Manager,
+
+I am particularly drawn to this Program Analyst role at the US Government because of the opportunity to leverage my experience in data governance and analytics to drive process automation and improvement. As a Quantitative Analyst (Data Steward) at the Federal Reserve Bank of Philadelphia, I have successfully designed and implemented Python scripts to automate data validation and integrity checks, resulting in improved data quality and ensured compliance with vendor agreements.
+
+Throughout my career, I have consistently demonstrated my ability to plan and execute complex projects that require coordination with others and development of project controls. For example, as a Quantitative Analyst (Data Steward), I led the implementation of an AI Data Warehouse Knowledge Bot across multiple departments, resulting in a 25% reduction in data-related incidents. Additionally, I have experience preparing documentation on cost/benefit studies, such as a root cause analysis of a data incident, which involved summarizing the material and organizing it in a logical fashion. My technical skills, including Python, SQL, and Excel, have also enabled me to automate research tasks and data cleaning processes, improving efficiency and reducing errors.
+
+With my strong background in data governance and analytics, combined with my experience in planning and executing complex projects, I am confident that I possess the skills and abilities necessary to successfully perform the duties of this Program Analyst role. I am excited about the opportunity to bring my expertise to the US Government and contribute to the automation of work processes.
+
+Sincerely,
+Alexander Lago
+alexanderlago11@gmail.com

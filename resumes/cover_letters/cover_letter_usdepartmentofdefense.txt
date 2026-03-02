@@ -1,0 +1,11 @@
+Dear Hiring Manager,
+
+I'm drawn to the US Department of Defense's commitment to leveraging technology to enhance national security, particularly through the development and implementation of robust information systems security programs. As a data governance and analytics professional with a proven track record of driving process improvements and mitigating risk, I'm excited about the prospect of joining a team dedicated to safeguarding sensitive information.
+
+Throughout my career, I've consistently delivered results that align with the job requirements for a Program Analyst at the US Department of Defense. At the Federal Reserve Bank of Philadelphia, I designed and implemented Python scripts to automate data validation and integrity checks, improving data quality and ensuring compliance with vendor agreements. Additionally, I defined and operationalized data governance processes, including access standards, usage policies, and stewardship workflows across multiple teams. These efforts not only improved data integrity but also reduced risk and enhanced compliance.
+
+With a strong foundation in data governance, analytics, and security, I'm confident in my ability to make a meaningful contribution to the US Department of Defense. I'm excited about the opportunity to leverage my skills and experience to support the development and implementation of information systems security programs, ensuring the confidentiality, integrity, and availability of sensitive information.
+
+Sincerely,
+Alexander Lago
+alexanderlago11@gmail.com

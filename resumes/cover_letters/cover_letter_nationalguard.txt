@@ -1,0 +1,11 @@
+Dear Hiring Manager,
+
+I'm drawn to the National Guard's commitment to fostering a culture of data-driven decision-making, as evident in the recent implementation of data analytics platforms to enhance operational efficiency. As a seasoned data governance and analytics professional, I'm excited about the prospect of leveraging my expertise to support the National Guard's mission.
+
+Throughout my tenure as a Quantitative Analyst at the Federal Reserve Bank of Philadelphia, I've consistently demonstrated my ability to design and implement data governance processes, ensuring compliance with regulations and vendor agreements. Notably, I've improved data quality by automating data validation and integrity checks using Python scripts, resulting in a 25% reduction in data incidents. Additionally, I've successfully led technical training sessions for Federal Reserve staff, educating over 100 attendees on data governance practices and correct dataset usage. These achievements align with the National Guard's need for experienced professionals who can analyze, interpret, and develop policies and procedures.
+
+With my strong foundation in data governance, analytics, and leadership, I'm confident in my ability to make a meaningful impact at the National Guard. I'm eager to bring my expertise to a role that demands analytical ability, practical knowledge of management functions, and experience with computer and automation systems. I'm excited about the opportunity to join the National Guard team and contribute to the organization's mission to support the nation's defense.
+
+Sincerely,
+Alexander Lago
+alexanderlago11@gmail.com

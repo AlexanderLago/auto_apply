@@ -1,0 +1,11 @@
+Dear Hiring Manager,
+
+I'm drawn to this Financial Management Specialist role at the Florida National Guard because of the opportunity to apply my data governance expertise to support the organization's fiscal reporting and financial advisory services. As a seasoned data steward with experience in managing funds through fiscal reporting and financial systems applications, I'm confident that I can make a meaningful contribution to the team.
+
+Throughout my career, I've demonstrated my ability to collect and analyze data, prepare reports and presentations, and deliver formal training presentations. Notably, as a Quantitative Analyst (Data Steward) at the Federal Reserve Bank of Philadelphia, I designed and implemented Python scripts to automate data validation and integrity checks, improving data quality and ensuring compliance with vendor agreements. Additionally, I managed and resolved data governance and compliance issues, partnering closely with legal, procurement, and vendor teams to mitigate data risk. I also led technical training on datasets for Federal Reserve staff, fostering understanding of data governance practices and correct dataset usage.
+
+I'm excited about the prospect of joining the Florida National Guard team and contributing my skills and experience to support the organization's financial management policies. With my strong background in data governance and analytics, I'm confident that I can make a positive impact and help drive the team's success. I look forward to discussing my qualifications further.
+
+Sincerely,
+Alexander Lago
+alexanderlago11@gmail.com

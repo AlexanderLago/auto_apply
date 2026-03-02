@@ -1,0 +1,11 @@
+Dear Hiring Manager,
+
+I'm drawn to ComputerCare's unique blend of technical excellence and human connection, which resonates deeply with my own approach to data governance and analytics. As a seasoned data professional, I'm excited about the prospect of joining a company that values both the technical and personal aspects of its work. I'm particularly impressed by ComputerCare's commitment to accountability, quality, and building lasting relationships with clients and team members.
+
+With over three years of experience in data governance and analytics, I've developed a strong skillset that aligns with the requirements of the Data Analyst II role. Notably, I've designed and implemented Python scripts to automate data validation and integrity checks, improving data quality and ensuring compliance with vendor agreements. I've also led technical training on datasets for Federal Reserve staff, fostering understanding of data governance practices and correct dataset usage. Additionally, I've worked with cross-functional teams to understand business requirements, define KPIs, and translate them into analytical solutions.
+
+I'm confident that my expertise in data governance, analytics, and automation, combined with my passion for solving complex problems with data, make me an ideal fit for ComputerCare. I'm excited about the opportunity to join a team that values technical excellence and genuine human connection, and I'm eager to contribute my skills and experience to help drive business decisions and improve workflow.
+
+Sincerely,
+Alexander Lago
+alexanderlago11@gmail.com

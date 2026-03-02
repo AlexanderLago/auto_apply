@@ -1,0 +1,11 @@
+Dear Hiring Manager,
+
+As a data governance and analytics professional with a strong background in managing high-risk, regulated environments, I am particularly drawn to the GS-9 Technician role at ILNG (National Guard), where I can leverage my expertise to support the organization's mission. The opportunity to apply my knowledge of data quality, risk controls, and governance processes in a unique and challenging context is a compelling one, and I am excited about the prospect of joining the ILNG team.
+
+Throughout my career, I have consistently demonstrated my ability to design and implement effective data governance processes, as evidenced by my experience as a Quantitative Analyst (Data Steward) at the Federal Reserve Bank of Philadelphia. In this role, I have successfully automated data validation and integrity checks, improved data quality, and ensured compliance with vendor agreements. Additionally, I have led technical training on datasets for Federal Reserve staff, fostering understanding of data governance practices and correct dataset usage. These achievements align closely with the specialized experience required for the GS-9 Technician role, and I am confident that my skills and experience make me a strong candidate for this position.
+
+With a strong foundation in data governance, analytics, and leadership, I am well-equipped to support the ILNG's mission and contribute to the organization's success. I am confident that my expertise and experience make me an ideal candidate for this role, and I look forward to discussing my qualifications further.
+
+Sincerely,
+Alexander Lago
+alexanderlago11@gmail.com

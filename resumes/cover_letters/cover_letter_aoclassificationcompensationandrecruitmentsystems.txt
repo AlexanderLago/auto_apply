@@ -1,0 +1,11 @@
+Dear Hiring Manager,
+
+I'm drawn to the AO Classification, Compensation, and Recruitment Systems' commitment to utilizing cutting-edge forensic analysis techniques to drive informed decision-making. The prospect of applying my technical expertise to support the development of robust digital forensic capabilities is particularly exciting, and I'm confident that my background in data governance and analytics would be a valuable asset in this role.
+
+Throughout my career, I've developed a strong foundation in data analysis and governance, which has enabled me to drive process improvements and ensure data quality in high-risk, regulated environments. As a Quantitative Analyst (Data Steward) at the Federal Reserve Bank of Philadelphia, I designed and implemented Python scripts to automate data validation and integrity checks, improving data quality and ensuring compliance with vendor agreements. I also led technical training on datasets for Federal Reserve staff, fostering understanding of data governance practices and correct dataset usage, with over 100 attendees. Additionally, I supported a research department with data cleaning and research paper revision as a Research Analyst, automating research tasks using Python and SQL.
+
+I'm eager to leverage my analytical skills and experience to contribute to the AO Classification, Compensation, and Recruitment Systems as a Forensic Analyst. I'm confident that my unique blend of technical expertise and data governance knowledge would enable me to drive meaningful insights and support the development of robust digital forensic capabilities. I'm excited about the opportunity to bring my skills and experience to this role and contribute to the organization's success.
+
+Sincerely,
+Alexander Lago
+alexanderlago11@gmail.com

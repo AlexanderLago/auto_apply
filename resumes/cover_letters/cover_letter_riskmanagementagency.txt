@@ -1,0 +1,11 @@
+Dear Hiring Manager,
+
+I'm thrilled to see the Risk Management Agency leveraging innovative data analytics to enhance agricultural program activities and improve regulatory compliance. As a seasoned data governance and analytics professional, I'm particularly drawn to the Agency's commitment to harnessing cutting-edge techniques, such as machine learning and data visualization, to drive informed decision-making. My experience as a Quantitative Analyst at the Federal Reserve Bank of Philadelphia has equipped me with the expertise to develop and enhance analytic capabilities, and I'm eager to bring my skills to the Risk Management Agency.
+
+Throughout my career, I've demonstrated a proven track record of driving data quality and governance initiatives. As a Quantitative Analyst, I designed and implemented Python scripts to automate data validation and integrity checks, improving data quality by 25% and ensuring compliance with vendor agreements. I also led technical training on datasets for Federal Reserve staff, fostering understanding of data governance practices and correct dataset usage among 100+ attendees. Additionally, my experience as a Research Analyst involved automating research tasks using Python and SQL, such as querying data and regression analysis. These achievements align with the Agency's requirements, and I'm confident that my expertise will enable me to make a significant impact.
+
+With my strong background in data governance, analytics, and leadership, I'm confident that I possess the specialized experience required for this role. I'm excited about the prospect of joining the Risk Management Agency and contributing my expertise to drive data-driven decision-making. I look forward to discussing my qualifications further and exploring how I can support the Agency's mission.
+
+Sincerely,
+Alexander Lago
+alexanderlago11@gmail.com

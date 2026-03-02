@@ -1,0 +1,11 @@
+Dear Hiring Manager,
+
+I am drawn to the CIA's commitment to upholding the rule of law and the U.S. Constitution, as well as its dedication to improving the efficiency of the Federal government. As a data governance and analytics professional with a strong background in economics and statistics, I am excited about the prospect of joining an organization that values expertise in computational social science, artificial intelligence, and data analytics. The CIA's emphasis on leveraging technical expertise to drive informed decision-making aligns with my passion for using data to drive meaningful insights and outcomes.
+
+Throughout my career, I have demonstrated my ability to drive data-driven results in high-pressure, regulated environments. As a Quantitative Analyst (Data Steward) at the Federal Reserve Bank of Philadelphia, I designed and implemented Python scripts to automate data validation and integrity checks, improving data quality and ensuring compliance with vendor agreements. I also led technical training on datasets for Federal Reserve staff, fostering understanding of data governance practices and correct dataset usage. Additionally, I successfully automated research tasks using Python and SQL, such as querying data and regression analysis, as a Research Analyst at the Federal Reserve Bank of Philadelphia.
+
+With my expertise in data governance, analytics, and automation, I am confident in my ability to contribute to the CIA's technical opportunities. I possess strong critical thinking skills, creativity, and the ability to work within a team, which aligns with the CIA's desired qualifications. I am excited about the prospect of joining an organization that values expertise in STEM fields and is committed to driving informed decision-making through technical expertise. I look forward to discussing my qualifications further.
+
+Sincerely,
+Alexander Lago
+alexanderlago11@gmail.com

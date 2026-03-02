@@ -11,6 +11,7 @@
 from __future__ import annotations
 import json
 import re
+import time
 import config
 
 log = config.get_logger(__name__)
@@ -33,7 +34,7 @@ def _providers():
             "key":      config.CEREBRAS_API_KEY,
             "type":     "oai",
             "base_url": "https://api.cerebras.ai/v1",
-            "model":    "llama3.1-70b",
+            "model":    "llama3.1-8b",
         },
         {
             "id":       "gemini",
@@ -53,6 +54,11 @@ def _providers():
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
+
+def _is_rate_limit(exc: Exception) -> bool:
+    msg = str(exc).lower()
+    return any(x in msg for x in ("429", "rate_limit", "rate limit", "resource_exhausted", "quota"))
+
 
 def _should_skip(exc: Exception) -> bool:
     msg = str(exc).lower()
@@ -95,13 +101,16 @@ def _call_anthropic(api_key: str, model: str,
 # ── Public API ─────────────────────────────────────────────────────────────────
 
 def call_llm(system: str, user: str,
-             max_tokens: int = 1024, temperature: float = 0.2) -> str:
+             max_tokens: int = 1024, temperature: float = 0.2,
+             _retry: int = 1) -> str:
     """
     Call LLM providers in priority order until one returns a response.
-    Skips providers whose key is empty or that return rate-limit / auth errors.
-    Raises RuntimeError if every provider fails.
+    Skips providers whose key is empty or that return auth/404 errors.
+    On rate-limit, waits 30 s and retries the whole chain once.
+    Raises RuntimeError if every provider fails after the retry.
     """
     errors = []
+    rate_limited = False
     for p in _providers():
         if not p["key"]:
             continue
@@ -114,13 +123,19 @@ def call_llm(system: str, user: str,
             log.debug("LLM call succeeded via %s", p["id"])
             return text
         except Exception as e:
+            if _is_rate_limit(e):
+                rate_limited = True
             if _should_skip(e):
                 log.warning("Provider %s skipped: %s", p["id"], str(e)[:120])
                 errors.append(f"{p['id']}: {str(e)[:80]}")
             else:
-                # Unexpected error — still fall through so we don't abort on one bad provider
                 log.warning("Provider %s unexpected error: %s", p["id"], e)
                 errors.append(f"{p['id']}: {str(e)[:80]}")
+
+    if rate_limited and _retry > 0:
+        log.info("All providers rate-limited — waiting 35 s then retrying...")
+        time.sleep(35)
+        return call_llm(system, user, max_tokens, temperature, _retry=_retry - 1)
 
     raise RuntimeError(f"All LLM providers failed: {'; '.join(errors)}")
 

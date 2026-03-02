@@ -1,0 +1,11 @@
+Dear Hiring Manager,
+
+I'm excited about the Data Analyst role at Mindlance because it offers the opportunity to work with a variety of companies and datasets, allowing me to apply my data governance and analytics skills in a dynamic environment. Mindlance's commitment to connecting talented IT professionals with world-class companies resonates with me, and I'm eager to be part of a team that values career growth and passion for one's work.
+
+With over 3 years of experience in leading data quality, risk controls, and governance processes, I'm confident in my ability to drive data-driven insights and solutions. In my current role as a Quantitative Analyst at the Federal Reserve Bank of Philadelphia, I've designed and implemented Python scripts to automate data validation and integrity checks, resulting in improved data quality and compliance with vendor agreements. I've also led technical training on datasets for over 100 Federal Reserve staff members, fostering a deeper understanding of data governance practices and correct dataset usage. Additionally, I've automated research tasks using Python and SQL, such as querying data and regression analysis, in my previous role as a Research Analyst.
+
+I'm ready to leverage my skills and experience to make a meaningful impact as a Data Analyst at Mindlance, and I look forward to discussing my application and how I can contribute to the company's success.
+
+Sincerely,
+Alexander Lago
+alexanderlago11@gmail.com

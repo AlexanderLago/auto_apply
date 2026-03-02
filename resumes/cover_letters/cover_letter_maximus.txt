@@ -1,0 +1,11 @@
+Dear Hiring Manager,
+
+I'm particularly drawn to Maximus's commitment to leveraging advanced analytics and AI to drive meaningful insights and improve performance outcomes. As someone who has successfully applied machine learning and data governance principles in a high-risk, regulated federal financial institution, I'm excited about the prospect of joining a team that prioritizes innovation and data-driven decision-making.
+
+Throughout my career, I've consistently demonstrated my ability to design and implement data governance processes that ensure data quality, integrity, and compliance. For example, as a Quantitative Analyst at the Federal Reserve Bank of Philadelphia, I improved data quality by automating data validation and integrity checks using Python scripts, resulting in a 25% reduction in data errors. Additionally, I led technical training sessions on datasets for Federal Reserve staff, fostering understanding of data governance practices and correct dataset usage among 100+ attendees. I'm confident that my expertise in data governance, risk management, and analytics will enable me to make a significant impact at Maximus.
+
+I'm confident that my unique blend of technical skills, leadership experience, and passion for innovation make me an ideal fit for this role. I'm excited about the opportunity to join a team that shares my commitment to harnessing the power of data and AI to drive meaningful insights and outcomes. I look forward to discussing my application and how I can contribute to Maximus's mission.
+
+Sincerely,
+Alexander Lago
+alexanderlago11@gmail.com

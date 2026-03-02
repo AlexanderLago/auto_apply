@@ -1,0 +1,11 @@
+Dear Hiring Manager,
+
+The Missouri Air National Guard's commitment to leveraging data-driven insights to drive mission success resonates deeply with me, particularly given my experience in leading data governance processes at the Federal Reserve Bank of Philadelphia. As a Quantitative Analyst (Data Steward), I've had the opportunity to design and implement data validation and integrity checks using Python scripts, significantly improving data quality and ensuring compliance with vendor agreements. I'm excited about the prospect of applying my expertise to support the Missouri Air National Guard's data management initiatives.
+
+Throughout my tenure at the Federal Reserve Bank of Philadelphia, I've demonstrated my ability to plan, coordinate, and direct data governance functions, including access standards, usage policies, and stewardship workflows across multiple teams. Notably, I led technical training on datasets for Federal Reserve staff, fostering understanding of data governance practices and correct dataset usage among 100+ attendees. Additionally, I automated research tasks using Python and SQL, such as querying data and regression analysis, which improved research efficiency by 30%. These achievements align closely with the specialized experience requirements for the GS-13 role, and I'm confident in my ability to provide advice, counseling, and instruction to subordinate employees.
+
+I'm eager to bring my expertise in data governance and analytics to the Missouri Air National Guard, where I can contribute to driving mission success through data-driven insights. I'm confident that my skills and experience make me an ideal candidate for this role, and I look forward to discussing my qualifications further.
+
+Sincerely,
+Alexander Lago
+alexanderlago11@gmail.com

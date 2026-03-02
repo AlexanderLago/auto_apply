@@ -1,0 +1,11 @@
+Dear Hiring Manager,
+
+I'm particularly drawn to the VA's commitment to harnessing data science and statistical analysis to drive Health Services Research (HRS) programs, which aligns with my passion for using data to inform evidence-based decision-making. As a seasoned data governance and analytics professional, I'm excited about the prospect of joining the VA team and contributing my expertise to drive meaningful outcomes.
+
+Throughout my career, I've consistently demonstrated my ability to drive data quality, risk controls, and governance processes in high-risk, regulated environments. For instance, as a Quantitative Analyst (Data Steward) at the Federal Reserve Bank of Philadelphia, I designed and implemented Python scripts to automate data validation and integrity checks, resulting in improved data quality and compliance with vendor agreements. I also led technical training on datasets for Federal Reserve staff, fostering understanding of data governance practices and correct dataset usage, with over 100 attendees. Additionally, as a Research Analyst, I automated research tasks using Python and SQL, such as querying data and regression analysis, which significantly enhanced research efficiency.
+
+With my strong foundation in data governance, analytics, and leadership, I'm confident in my ability to excel as a Data Scientist at the VA. I'm well-versed in statistical programming software, including R, SAS, and STATA, and have applied expert knowledge on data management schemas and statistical analysis plans. I'm excited about the opportunity to bring my skills and experience to the VA and contribute to the development of innovative data-driven solutions that drive improved health outcomes for our nation's veterans.
+
+Sincerely,
+Alexander Lago
+alexanderlago11@gmail.com

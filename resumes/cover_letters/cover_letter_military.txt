@@ -1,0 +1,11 @@
+Dear Hiring Manager,
+
+I'm drawn to the opportunity to leverage my data governance expertise in a military context, where precision and strategy are paramount. As a seasoned data steward at the Federal Reserve Bank of Philadelphia, I've witnessed firsthand how robust data governance processes can drive decision-making and mitigate risk. I'm excited about the prospect of applying my knowledge and skills to support the military's data-driven initiatives.
+
+Throughout my career, I've consistently demonstrated my ability to design and implement data governance processes, improve data quality, and ensure compliance with regulatory requirements. Notably, as a Quantitative Analyst (Data Steward) at the Federal Reserve Bank of Philadelphia, I developed and operationalized data governance processes that resulted in a 25% reduction in data incidents and a 30% improvement in data quality. Additionally, I led technical training sessions for Federal Reserve staff, reaching over 100 attendees and fostering a deeper understanding of data governance practices. My experience with Python, SQL, and data warehousing has also enabled me to automate data validation and integrity checks, streamlining data processing and reducing manual errors.
+
+With my expertise in data governance, analytics, and automation, I'm confident in my ability to drive data-driven decision-making and support the military's mission. I'm eager to bring my skills and experience to a role that requires a deep understanding of data processing functions and general management principles, as well as specialized experience in computer applications and computer specialty areas. I'm excited about the opportunity to join the military team and contribute to its data-driven initiatives.
+
+Sincerely,
+Alexander Lago
+alexanderlago11@gmail.com

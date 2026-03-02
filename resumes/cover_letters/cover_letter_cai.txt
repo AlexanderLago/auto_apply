@@ -1,0 +1,11 @@
+Dear Hiring Manager,
+
+I'm drawn to CAI's commitment to uniting talent and technology to power the possible, and I'm excited about the opportunity to join a global technology services firm with a proven track record of excellence. The company's freedom and focus to do what is right, whatever it takes, resonates with my own professional values and approach to data governance and analytics.
+
+As a data governance and analytics professional with 3+ years of experience leading data quality, risk controls, and governance processes, I'm confident in my ability to drive impact at CAI. In my current role as a Quantitative Analyst at the Federal Reserve Bank of Philadelphia, I've designed and implemented Python scripts to automate data validation and integrity checks, improving data quality and ensuring compliance with vendor agreements. I've also led technical training on datasets for 100+ attendees, fostering understanding of data governance practices and correct dataset usage. Additionally, I've automated research tasks using Python and SQL, such as querying data and regression analysis, in my previous role as a Research Analyst.
+
+I'm eager to bring my skills and experience to CAI as a Financial Data Analyst, and I'm confident that my passion for data governance and analytics, combined with my technical expertise and leadership experience, make me a strong fit for this role, so I look forward to discussing my application and how I can contribute to the company's success.
+
+Sincerely,
+Alexander Lago
+alexanderlago11@gmail.com

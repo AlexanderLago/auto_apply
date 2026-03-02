@@ -1,0 +1,11 @@
+Dear Hiring Manager,
+
+As a seasoned data governance and analytics professional, I am particularly drawn to the Manpower Program Analyst role at the US Air Force because of the opportunity to leverage my expertise in designing and implementing comprehensive strategies to improve efficiency and effectiveness in manpower programs. The Air Force's commitment to integrating data system applications to conduct studies and determine manning skill levels resonates with my experience in developing and recommending manpower and organization policies, and I am excited about the prospect of applying my skills in a dynamic and mission-critical environment.
+
+Throughout my career, I have consistently demonstrated my ability to drive results in data governance and analytics. As a Quantitative Analyst (Data Steward) at the Federal Reserve Bank of Philadelphia, I designed and implemented Python scripts to automate data validation and integrity checks, improving data quality and ensuring compliance with vendor agreements. I also led technical training on datasets for Federal Reserve staff, fostering understanding of data governance practices and correct dataset usage. Additionally, my experience as a Research Analyst involved automating research tasks using Python and SQL, and my work as a Paralegal involved conducting detailed legal and statutory research to support case strategy and regulatory interpretation.
+
+With my expertise in data governance, analytics, and leadership, I am confident that I possess the skills and abilities required to excel as a Manpower Program Analyst at the US Air Force. I am eager to bring my passion for improving efficiency and effectiveness in manpower programs to a dynamic and mission-critical environment, and I am excited about the opportunity to contribute to the Air Force's mission.
+
+Sincerely,
+Alexander Lago
+alexanderlago11@gmail.com

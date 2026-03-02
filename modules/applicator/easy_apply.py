@@ -21,8 +21,8 @@ log = config.get_logger(__name__)
 
 
 class EasyApplyBot:
-    def __init__(self, resume_path: Path, headless: bool = False, submit: bool = False):
-        self.resume_path = Path(resume_path)
+    def __init__(self, resume_path: Path = None, headless: bool = False, submit: bool = False):
+        self.resume_path = Path(resume_path) if resume_path else None
         self.headless    = headless
         self.submit      = submit   # must be True to actually click Submit
         self._pw         = None
@@ -31,7 +31,8 @@ class EasyApplyBot:
 
     def __enter__(self):
         from playwright.sync_api import sync_playwright
-        self._pw      = sync_playwright().__enter__()
+        self._pw_cm   = sync_playwright()
+        self._pw      = self._pw_cm.__enter__()
         self._browser = self._pw.chromium.launch(headless=self.headless)
         self._page    = self._browser.new_page()
         return self
@@ -39,24 +40,42 @@ class EasyApplyBot:
     def __exit__(self, *_):
         if self._browser:
             self._browser.close()
-        if self._pw:
-            self._pw.__exit__(None, None, None)
+        if self._pw_cm:
+            self._pw_cm.__exit__(None, None, None)
 
     def apply(self, job: Job, job_id: int) -> Application | None:
         log.info("Easy Apply [%s]: %s at %s (submit=%s)",
                  job.source, job.title, job.company, self.submit)
         try:
-            if job.source == "greenhouse":
+            ats = self._detect_ats(job)
+            if ats == "greenhouse":
                 return self._apply_greenhouse(job, job_id)
-            if job.source == "lever":
+            if ats == "lever":
                 return self._apply_lever(job, job_id)
             if job.source == "linkedin":
                 return self._apply_linkedin(job, job_id)
-            log.warning("No Easy Apply handler for source: %s", job.source)
+            log.warning("No Easy Apply handler for %s (url=%s)", job.source, job.url[:60])
             return None
         except Exception as e:
             log.error("Easy Apply failed for job %d: %s", job_id, e)
             return None
+
+    @staticmethod
+    def _detect_ats(job: Job) -> str:
+        """
+        Determine which ATS the job uses.
+        Checks the job's source first, then falls back to URL pattern matching
+        so that Adzuna/RemoteOK jobs pointing to Greenhouse or Lever can also
+        be auto-applied.
+        """
+        if job.source in ("greenhouse", "lever"):
+            return job.source
+        url = (job.url or "").lower()
+        if "greenhouse.io" in url or "boards.greenhouse.io" in url:
+            return "greenhouse"
+        if "lever.co" in url or "jobs.lever.co" in url:
+            return "lever"
+        return job.source  # unknown — apply() will log a warning
 
     # ── Greenhouse ─────────────────────────────────────────────────────────────
 
@@ -75,13 +94,24 @@ class EasyApplyBot:
         _fill_if_exists(page, "#email",      config.APPLICANT_EMAIL)
         _fill_if_exists(page, "#phone",      config.APPLICANT_PHONE)
 
-        # Resume upload — Greenhouse uses a hidden file input
-        resume_selector = "input[type='file'][id*='resume']"
-        if page.locator(resume_selector).count() > 0 and self.resume_path.exists():
+        # Resume upload — try multiple selectors across different Greenhouse board configs
+        for resume_selector in (
+            "input[type='file'][id*='resume']",
+            "input[type='file'][name*='resume']",
+            "input[type='file']",
+        ):
+            if page.locator(resume_selector).count() > 0:
+                break
+        else:
+            resume_selector = None
+
+        if resume_selector and self.resume_path and self.resume_path.exists():
             page.set_input_files(resume_selector, str(self.resume_path))
             log.info("Resume uploaded: %s", self.resume_path.name)
+        elif not resume_selector:
+            log.warning("No file input found on page for job %d", job_id)
         else:
-            log.warning("Resume input not found or file missing: %s", self.resume_path)
+            log.warning("Resume file missing: %s", self.resume_path)
 
         # Demographic / EEO dropdowns — select "Decline to self-identify" where present
         for select in page.locator("select").all():

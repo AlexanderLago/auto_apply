@@ -1,0 +1,11 @@
+Dear Hiring Manager,
+
+I'm particularly drawn to the Operations Research Analyst role at USAJOBS, as it leverages my expertise in data governance and analytics to drive informed decision-making. The opportunity to work with a team that prioritizes data-driven insights and strategic planning aligns with my passion for using data to drive business outcomes.
+
+Throughout my career, I've consistently demonstrated my ability to drive data quality, risk controls, and governance processes in high-risk, regulated environments. As a Quantitative Analyst (Data Steward) at the Federal Reserve Bank of Philadelphia, I designed and implemented Python scripts to automate data validation and integrity checks, improving data quality by 25% and ensuring compliance with vendor agreements. Additionally, I led technical training on datasets for Federal Reserve staff, fostering understanding of data governance practices and correct dataset usage among 100+ attendees. My experience conducting detailed analyses of complex functions and work processes, as well as coordinating with leadership and team members to ensure consistency with agency standards for data governance, aligns with the requirements of this role.
+
+I'm confident that my technical skills, leadership experience, and passion for data-driven decision-making make me an ideal candidate for this position. I've developed expertise in Python, SQL, and data governance tools, and I'm excited about the opportunity to apply my skills in a new context. I look forward to discussing my qualifications further and exploring how I can contribute to the USAJOBS team.
+
+Sincerely,
+Alexander Lago
+alexanderlago11@gmail.com

@@ -175,7 +175,10 @@ def cmd_apply(args):
     if not submit:
         print("[DRY RUN] Forms will be filled but NOT submitted. Pass --submit to actually apply.")
 
-    jobs = get_jobs(status="tailored", min_score=config.AUTO_APPLY_MIN_SCORE, limit=10)
+    # Pull a wide pool, then exclude sources we can't auto-apply
+    _SKIP_SOURCES = {"usajobs", "adzuna", "remoteok", "linkedin"}
+    jobs = [j for j in get_jobs(status="tailored", min_score=config.AUTO_APPLY_MIN_SCORE, limit=500)
+            if j["source"] not in _SKIP_SOURCES][:10]
     if not jobs:
         print("No jobs ready for auto-apply. Run tailor first.")
         return
@@ -184,7 +187,15 @@ def cmd_apply(args):
 
     with EasyApplyBot(headless=False, submit=submit) as bot:
         for job_row in jobs:
-            job = Job(**{k: job_row[k] for k in Job.model_fields if k in job_row})
+            job = Job(
+                source=job_row["source"],
+                external_id=job_row["external_id"],
+                title=job_row["title"],
+                company=job_row["company"],
+                location=job_row.get("location", ""),
+                work_type=job_row.get("work_type", "unknown"),
+                url=job_row.get("url", ""),
+            )
             # Use company-specific tailored resume if it exists, else generic
             slug = job.company.lower().replace(" ", "")[:20]
             resume = tailored_dir / f"resume_{slug}.docx"

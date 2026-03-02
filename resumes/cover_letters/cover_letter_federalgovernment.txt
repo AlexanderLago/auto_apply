@@ -1,0 +1,11 @@
+Dear Hiring Manager,
+
+I'm particularly drawn to the Federal Government's commitment to leveraging data analytics and systems engineering principles to drive informed decision-making and solve complex technical problems. The opportunity to contribute to this effort as an ND-03/ND-04 Engineer/Scientist is a compelling one, and I'm excited about the prospect of applying my skills and experience to support the agency's mission.
+
+Throughout my career, I've demonstrated the ability to apply systems engineering principles to drive meaningful outcomes. As a Quantitative Analyst (Data Steward) at the Federal Reserve Bank of Philadelphia, I designed and implemented Python scripts to automate data validation and integrity checks, improving data quality and ensuring compliance with vendor agreements. I also led technical training on datasets for Federal Reserve staff, fostering understanding of data governance practices and correct dataset usage. Additionally, I supported a prolific research department with data cleaning and research paper revision, automating research tasks using Python and SQL. These experiences have equipped me with the technical expertise and problem-solving skills necessary to excel in this role.
+
+I'm confident that my background in data governance, analytics, and systems engineering makes me an ideal candidate for this position. I'm eager to bring my skills and experience to the Federal Government and contribute to the development of innovative solutions that drive impact. I look forward to discussing my qualifications further and exploring how I can support the agency's mission.
+
+Sincerely,
+Alexander Lago
+alexanderlago11@gmail.com
