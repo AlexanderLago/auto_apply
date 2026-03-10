@@ -72,7 +72,8 @@ def _should_skip(exc: Exception) -> bool:
 def _call_oai(base_url: str, api_key: str, model: str,
               system: str, user: str, max_tokens: int, temperature: float) -> str:
     from openai import OpenAI
-    client = OpenAI(api_key=api_key, base_url=base_url)
+    # max_retries=0: don't let the SDK retry on 429 — we handle fallback ourselves
+    client = OpenAI(api_key=api_key, base_url=base_url, max_retries=0)
     resp = client.chat.completions.create(
         model=model,
         messages=[

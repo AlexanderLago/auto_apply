@@ -31,6 +31,7 @@ USAJOBS_EMAIL     = os.getenv("USAJOBS_EMAIL",   "")
 # ── Scraping targets ───────────────────────────────────────────────────────────
 GREENHOUSE_BOARDS = [b.strip() for b in os.getenv("GREENHOUSE_BOARDS", "").split(",") if b.strip()]
 LEVER_COMPANIES   = [c.strip() for c in os.getenv("LEVER_COMPANIES", "").split(",") if c.strip()]
+ASHBY_COMPANIES   = [c.strip() for c in os.getenv("ASHBY_COMPANIES", "").split(",") if c.strip()]
 
 # ── Scoring weights ────────────────────────────────────────────────────────────
 WEIGHTS = {
@@ -52,10 +53,19 @@ SMTP_PASS    = os.getenv("SMTP_PASS",    "")   # Gmail: use an App Password
 NOTIFY_EMAIL = os.getenv("NOTIFY_EMAIL", "")
 
 # ── Applicant info (for EasyApplyBot) ──────────────────────────────────────────
-APPLICANT_FIRST_NAME  = os.getenv("APPLICANT_FIRST_NAME", "")
-APPLICANT_LAST_NAME   = os.getenv("APPLICANT_LAST_NAME",  "")
-APPLICANT_EMAIL       = os.getenv("APPLICANT_EMAIL",      "")
-APPLICANT_PHONE       = os.getenv("APPLICANT_PHONE",      "")
+APPLICANT_FIRST_NAME      = os.getenv("APPLICANT_FIRST_NAME",      "")
+APPLICANT_PREFERRED_NAME  = os.getenv("APPLICANT_PREFERRED_NAME",  "")
+APPLICANT_LAST_NAME       = os.getenv("APPLICANT_LAST_NAME",       "")
+APPLICANT_EMAIL           = os.getenv("APPLICANT_EMAIL",           "")
+APPLICANT_PHONE           = os.getenv("APPLICANT_PHONE",           "")
+APPLICANT_LINKEDIN        = os.getenv("APPLICANT_LINKEDIN",        "")
+APPLICANT_YEARS_EXP       = os.getenv("APPLICANT_YEARS_EXP",       "4")
+APPLICANT_GENDER          = os.getenv("APPLICANT_GENDER",          "")
+APPLICANT_GENDER_IDENTITY = os.getenv("APPLICANT_GENDER_IDENTITY", "")
+APPLICANT_ORIENTATION     = os.getenv("APPLICANT_ORIENTATION",     "")
+APPLICANT_VETERAN_STATUS  = os.getenv("APPLICANT_VETERAN_STATUS",  "")
+APPLICANT_DISABILITY      = os.getenv("APPLICANT_DISABILITY",      "")
+APPLICANT_RACE            = os.getenv("APPLICANT_RACE",            "")
 
 # ── Logging ────────────────────────────────────────────────────────────────────
 LOG_PATH.parent.mkdir(parents=True, exist_ok=True)

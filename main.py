@@ -20,29 +20,59 @@ log = config.get_logger("main")
 
 def cmd_scrape(args):
     """Scrape jobs from all configured sources and store in DB."""
-    from modules.scraper.adzuna     import AdzunaScraper
-    from modules.scraper.greenhouse import GreenhouseScraper
-    from modules.scraper.lever      import LeverScraper
-    from modules.scraper.linkedin   import LinkedInScraper
-    from modules.scraper.remotive   import RemotiveScraper
-    from modules.scraper.usajobs    import USAJobsScraper
-    from modules.tracker.database   import upsert_job, deduplicate_jobs
+    from modules.scraper.adzuna         import AdzunaScraper
+    from modules.scraper.ashby          import AshbyScraper
+    from modules.scraper.greenhouse     import GreenhouseScraper
+    from modules.scraper.indeed         import IndeedScraper
+    from modules.scraper.jobicy         import JobicyScraper
+    from modules.scraper.lever          import LeverScraper
+    from modules.scraper.linkedin       import LinkedInScraper
+    from modules.scraper.remotive       import RemotiveScraper
+    from modules.scraper.usajobs        import USAJobsScraper
+    from modules.scraper.weworkremotely import WeWorkRemotelyScraper
+    from modules.tracker.database       import upsert_job, deduplicate_jobs
 
-    scrapers = []
-    scrapers.append(AdzunaScraper(country="us"))
-    scrapers.append(RemotiveScraper())
-    scrapers.append(USAJobsScraper())
-    scrapers.append(LinkedInScraper())
-    scrapers += [GreenhouseScraper(token) for token in config.GREENHOUSE_BOARDS]
-    scrapers += [LeverScraper(slug)       for slug  in config.LEVER_COMPANIES]
+    kw  = args.keyword
+    loc = args.location
+    lim = args.limit
+
+    # Broad job boards — use keyword + location to stay relevant
+    broad = [
+        AdzunaScraper(country="us"),
+        IndeedScraper(),
+        RemotiveScraper(),
+        JobicyScraper(),
+        WeWorkRemotelyScraper(),
+        USAJobsScraper(),
+        LinkedInScraper(),
+    ]
+    # ATS company boards — get ALL jobs from each company (no keyword filter).
+    # The LLM scorer decides relevance, keeping our pipeline flexible.
+    ats = (
+        [GreenhouseScraper(token) for token in config.GREENHOUSE_BOARDS]
+        + [LeverScraper(slug)     for slug  in config.LEVER_COMPANIES]
+        + [AshbyScraper(company)  for company in config.ASHBY_COMPANIES]
+    )
 
     total = 0
-    for scraper in scrapers:
-        jobs = scraper.scrape(keyword=args.keyword, location=args.location,
-                              max_results=args.limit)
-        for job in jobs:
-            upsert_job(job)
-            total += 1
+    for scraper in broad:
+        try:
+            jobs = scraper.scrape(keyword=kw, location=loc, max_results=lim)
+            for job in jobs:
+                upsert_job(job)
+                total += 1
+        except Exception as e:
+            log.warning("Scraper %s failed: %s", type(scraper).__name__, e)
+
+    for scraper in ats:
+        try:
+            # Empty keyword → get all jobs; location filter still applied
+            jobs = scraper.scrape(keyword="", location=loc, max_results=lim)
+            for job in jobs:
+                upsert_job(job)
+                total += 1
+        except Exception as e:
+            log.warning("Scraper %s failed: %s", type(scraper).__name__, e)
 
     removed = deduplicate_jobs()
     log.info("Scraped %d jobs total (%d duplicates removed)", total, removed)
@@ -92,14 +122,23 @@ def cmd_score(args):
     candidate_titles  = profile.get("titles", [])
     candidate_summary = profile.get("summary", "")
 
-    jobs = get_jobs(status="new", limit=args.limit)
-    if not jobs:
+    from modules.utils.location_filter import filter_jobs, is_target_location
+    all_new = get_jobs(status="new", limit=args.limit)
+    if not all_new:
         print("No new jobs to score. Run 'scrape' first.")
         return
 
-    log.info("Scoring %d new jobs for %s", len(jobs), profile.get("name", "candidate"))
-    print(f"\nScoring {len(jobs)} jobs for {profile.get('name')} "
-          f"({len(candidate_skills)} skills, {candidate_years} yrs exp)\n")
+    # Score only remote / NYC-area jobs; ignore others to save LLM calls
+    jobs    = filter_jobs(all_new)
+    ignored = [j for j in all_new if not is_target_location(j)]
+    for j in ignored:
+        update_job_status(j["id"], "ignored")
+
+    log.info("Scoring %d/%d new jobs (remote/NYC filter, %d ignored)",
+             len(jobs), len(all_new), len(ignored))
+    print(f"\nScoring {len(jobs)}/{len(all_new)} jobs for {profile.get('name')} "
+          f"({len(candidate_skills)} skills, {candidate_years} yrs exp)"
+          f"  [{len(ignored)} non-remote/NYC ignored]\n")
 
     skipped = 0
     for job_row in jobs:
@@ -170,23 +209,47 @@ def cmd_apply(args):
     from modules.tracker.database      import get_jobs, log_application
     from modules.applicator.easy_apply import EasyApplyBot
     from modules.tracker.models        import Job
+    import collections, time as _time
+    import sqlite3
+    
+    # Clean up any database locks before starting
+    try:
+        con = sqlite3.connect(config.DB_PATH, timeout=5.0)
+        con.execute("PRAGMA wal_checkpoint(PASSIVE)")
+        con.close()
+    except Exception:
+        pass
+    
+    submit   = getattr(args, "submit",   False)
+    headless = getattr(args, "headless", False)
+    limit    = getattr(args, "limit",    50)
 
-    submit = getattr(args, "submit", False)
+    mode_tag = "[SUBMIT]" if submit else "[DRY RUN]"
     if not submit:
-        print("[DRY RUN] Forms will be filled but NOT submitted. Pass --submit to actually apply.")
+        print(f"{mode_tag} Forms will be filled but NOT submitted. Pass --submit to actually apply.")
+    if headless:
+        print("[HEADLESS] Running unattended — CAPTCHAs will be skipped automatically.")
 
-    # Pull a wide pool, then exclude sources we can't auto-apply
+    # Pull a wide pool; exclude sources the bot can't auto-fill
+    # (location filter applies at scoring/scrape time, not here — keep apply pool broad)
     _SKIP_SOURCES = {"usajobs", "adzuna", "remoteok", "linkedin"}
     jobs = [j for j in get_jobs(status="tailored", min_score=config.AUTO_APPLY_MIN_SCORE, limit=500)
-            if j["source"] not in _SKIP_SOURCES][:10]
+            if j["source"] not in _SKIP_SOURCES][:limit]
     if not jobs:
-        print("No jobs ready for auto-apply. Run tailor first.")
+        print("No jobs ready for auto-apply. Run 'tailor' first.")
         return
 
-    tailored_dir = config.ROOT_DIR / "resumes" / "tailored"
+    print(f"\n{'-'*60}")
+    print(f"  Starting apply run -- {len(jobs)} jobs queued")
+    print(f"  min_score={config.AUTO_APPLY_MIN_SCORE}  limit={limit}  submit={submit}  headless={headless}")
+    print(f"{'-'*60}\n")
 
-    with EasyApplyBot(headless=False, submit=submit) as bot:
-        for job_row in jobs:
+    tailored_dir = config.ROOT_DIR / "resumes" / "tailored"
+    outcomes = []
+    t_start  = _time.time()
+
+    with EasyApplyBot(headless=headless, submit=submit) as bot:
+        for i, job_row in enumerate(jobs, 1):
             job = Job(
                 source=job_row["source"],
                 external_id=job_row["external_id"],
@@ -196,28 +259,191 @@ def cmd_apply(args):
                 work_type=job_row.get("work_type", "unknown"),
                 url=job_row.get("url", ""),
             )
-            # Use company-specific tailored resume if it exists, else generic
+            # Use company-specific tailored resume if it exists, else any generic one
             slug = job.company.lower().replace(" ", "")[:20]
             resume = tailored_dir / f"resume_{slug}.docx"
             if not resume.exists():
                 resume = next(tailored_dir.glob("*.docx"), None)
             if not resume:
                 log.warning("No tailored resume found — skipping job %d", job_row["id"])
+                from modules.applicator.easy_apply import ApplyOutcome
+                outcomes.append(ApplyOutcome(
+                    job_id=job_row["id"], company=job_row["company"],
+                    title=job_row["title"], status="error",
+                    error="no tailored resume found"))
+                print(f"  [{i:02d}] [NO RESUME] {job_row['title'][:35]} @ {job_row['company']}")
                 continue
+
             bot.resume_path = resume
-            app = bot.apply(job, job_row["id"])
-            if app:
+            outcome = bot.apply(job, job_row["id"])
+            outcomes.append(outcome)
+
+            if outcome.status in ("submitted", "dry_run") and outcome.app:
                 if submit:
-                    log_application(app)
-                status = "[OK]" if submit else "[DRY RUN]"
-                print(f"  {status} {job_row['title']} @ {job_row['company']}")
+                    try:
+                        log_application(outcome.app)
+                        # Checkpoint after each application to clear WAL
+                        import sqlite3
+                        try:
+                            ckpt_con = sqlite3.connect(config.DB_PATH, timeout=5.0)
+                            ckpt_con.execute("PRAGMA wal_checkpoint(PASSIVE)")
+                            ckpt_con.close()
+                        except Exception:
+                            pass
+                    except Exception as log_err:
+                        log.warning("Failed to log application: %s", log_err)
+                tag = "SUBMITTED" if submit else "DRY RUN OK"
+            elif outcome.status == "captcha":
+                tag = "CAPTCHA"
+            elif outcome.status == "no_handler":
+                tag = "NO HANDLER"
+            else:
+                tag = "ERROR"
+
+            label = f"[{i:02d}] [{tag}]"
+            print(f"  {label} {job_row['title'][:35]:<35} @ {job_row['company']}")
+            if outcome.error:
+                # Truncate long errors for readability
+                print(f"           {outcome.error[:90]}")
+
+    elapsed = _time.time() - t_start
+    _print_apply_report(outcomes, elapsed, submit)
+
+
+def _print_apply_report(outcomes, elapsed_secs, submitted: bool) -> None:
+    """Print a formatted metrics report after an apply run."""
+    import collections
+
+    total = len(outcomes)
+    if total == 0:
+        return
+
+    counts = collections.Counter(o.status for o in outcomes)
+    success_statuses = {"submitted", "dry_run"}
+    n_success  = sum(counts[s] for s in success_statuses)
+    n_captcha  = counts["captcha"]
+    n_error    = counts["error"]
+    n_handler  = counts["no_handler"]
+    pct        = (n_success / total * 100) if total else 0
+
+    # Group errors by first ~60 chars of message
+    error_groups = collections.Counter(
+        o.error[:60] for o in outcomes if o.status == "error" and o.error
+    )
+
+    w = 60
+    print(f"\n{'='*w}")
+    print(f"  APPLY RUN REPORT")
+    print(f"{'-'*w}")
+    print(f"  Attempted        : {total}")
+    success_label = "Submitted" if submitted else "Filled OK (dry run)"
+    print(f"  {success_label:<22}: {n_success}  ({pct:.0f}%)")
+    if n_captcha:
+        print(f"  CAPTCHA skipped  : {n_captcha}")
+    if n_handler:
+        print(f"  No handler       : {n_handler}")
+    if n_error:
+        print(f"  Errors           : {n_error}")
+    print(f"  Elapsed          : {elapsed_secs/60:.1f} min  "
+          f"({elapsed_secs/total:.0f}s/app avg)")
+    print(f"{'-'*w}")
+
+    if error_groups:
+        print(f"  Top error reasons:")
+        for msg, cnt in error_groups.most_common(5):
+            print(f"    x{cnt}  {msg}")
+        print(f"{'-'*w}")
+
+    print(f"  Per-company breakdown:")
+    by_company = collections.defaultdict(list)
+    for o in outcomes:
+        by_company[o.company].append(o.status)
+    for company, statuses in sorted(by_company.items()):
+        ok  = sum(1 for s in statuses if s in success_statuses)
+        ttl = len(statuses)
+        bar = "[OK]" * ok + "[--]" * (ttl - ok)
+        print(f"    {company:<20} {bar}  ({ok}/{ttl})")
+
+    print(f"{'='*w}\n")
+
+
+def cmd_stats(_args):
+    """Show quick application statistics."""
+    import sqlite3
+    from datetime import datetime
+    
+    con = sqlite3.connect(config.DB_PATH, timeout=30.0)
+    con.row_factory = sqlite3.Row
+    
+    # Total applications
+    total = con.execute("SELECT COUNT(*) FROM applications").fetchone()[0]
+    
+    # Applications today
+    today = datetime.now().date().isoformat()
+    today_count = con.execute("""
+        SELECT COUNT(*) FROM applications 
+        WHERE date(applied_at) = ?
+    """, (today,)).fetchone()[0]
+    
+    # Outcome breakdown
+    outcome_counts = con.execute("""
+        SELECT outcome, COUNT(*) as count 
+        FROM applications 
+        GROUP BY outcome
+    """).fetchall()
+    
+    # Recent applications
+    recent = con.execute("""
+        SELECT j.company, j.title, a.outcome, a.applied_at, a.method
+        FROM applications a
+        JOIN jobs j ON a.job_id = j.id
+        ORDER BY a.applied_at DESC
+        LIMIT 10
+    """).fetchall()
+    
+    con.close()
+    
+    outcome_dict = {r['outcome']: r['count'] for r in outcome_counts}
+    pending = outcome_dict.get('pending', 0)
+    interviews = outcome_dict.get('interview', 0)
+    rejected = outcome_dict.get('rejected', 0)
+    offers = outcome_dict.get('offer', 0)
+    
+    # Calculate success rate (interviews + offers / total)
+    success_rate = ((interviews + offers) / total * 100) if total > 0 else 0
+    
+    print("\n" + "=" * 70)
+    print("  AUTO-APPLY STATISTICS")
+    print("=" * 70)
+    print(f"  Total Applications:  {total}")
+    print(f"  Applied Today:       {today_count}")
+    print(f"  Interview/Offer Rate: {success_rate:.1f}%")
+    print("-" * 70)
+    print(f"  Pending: {pending}  |  Interviews: {interviews}  |  Offers: {offers}  |  Rejected: {rejected}")
+    print("=" * 70)
+    
+    if recent:
+        print("\n  RECENT APPLICATIONS")
+        print("-" * 70)
+        for app in recent:
+            if app['outcome'] == 'pending':
+                status_icon = "[~]"
+            elif app['outcome'] == 'interview':
+                status_icon = "[!]"
+            elif app['outcome'] == 'offer':
+                status_icon = "[OK]"
+            else:
+                status_icon = "[X]"
+            time_str = datetime.fromisoformat(app['applied_at']).strftime('%m-%d %H:%M')
+            method_str = "[BOT]" if app['method'] == 'easy_apply' else "[MAN]"
+            print(f"  {status_icon} {method_str} {time_str}  {app['company'][:25]:<25}  {app['title'][:35]}")
+        print("=" * 70 + "\n")
 
 
 def cmd_dashboard(_args):
-    """Launch the Streamlit dashboard."""
-    import subprocess
-    subprocess.run([sys.executable, "-m", "streamlit", "run",
-                    str(config.ROOT_DIR / "dashboard" / "app.py")])
+    """Launch the terminal dashboard."""
+    from dashboard.terminal_app import dashboard
+    dashboard()
 
 
 # ── CLI ────────────────────────────────────────────────────────────────────────
@@ -256,17 +482,27 @@ def main():
     p_run.add_argument("--limit",      type=int,   default=50)
     p_run.add_argument("--min-score",  type=float, default=config.MIN_SCORE_TO_TAILOR)
     p_run.add_argument("--auto-apply", action="store_true", help="Also run Easy Apply")
+    p_run.add_argument("--headless",   action="store_true", help="Run browser headless")
+    p_run.add_argument("--submit",     action="store_true", help="Actually submit forms")
     p_run.set_defaults(func=cmd_run)
 
     # apply
     p_apply = sub.add_parser("apply", help="Easy Apply to tailored jobs")
-    p_apply.add_argument("--submit", action="store_true",
+    p_apply.add_argument("--submit",   action="store_true",
                          help="Actually submit forms (default: dry run only)")
+    p_apply.add_argument("--headless", action="store_true",
+                         help="Run browser headless for unattended/overnight runs")
+    p_apply.add_argument("--limit",    type=int, default=50,
+                         help="Max number of jobs to apply to (default: 50)")
     p_apply.set_defaults(func=cmd_apply)
 
     # dashboard
-    p_dash = sub.add_parser("dashboard", help="Launch Streamlit dashboard")
+    p_dash = sub.add_parser("dashboard", help="Launch terminal dashboard")
     p_dash.set_defaults(func=cmd_dashboard)
+
+    # stats
+    p_stats = sub.add_parser("stats", help="Show application statistics")
+    p_stats.set_defaults(func=cmd_stats)
 
     args = parser.parse_args()
     init_db()

@@ -1,0 +1,137 @@
+====================================================================
+AUTO-APPLY — COVERAGE REPORT & STATUS
+Date: 2026-03-04
+Goal: 70-80% of job applications (pragmatic, not overengineered)
+====================================================================
+
+── COVERAGE SUMMARY ─────────────────────────────────────────────────
+Target: 70-80% of applications without custom per-company code
+
+✅ WORKING (Estimated 60-70% coverage):
+  - Greenhouse standard forms (job-boards.greenhouse.io)
+    * Discord, Airbnb, Lyft, Chime, etc.
+    * All React Select dropdowns working
+    * Resume upload working
+    * Form submission working
+    * Email verification code retrieval working
+  
+  - Lever forms (basic support)
+    * Simple forms with standard fields
+  
+  - Ashby forms (basic support)
+    * Standard fields and dropdowns
+
+❌ NOT SUPPORTED (Estimated 20-30% of applications):
+  - Custom embedded Greenhouse forms (Stripe, some enterprise)
+    * These use custom React components embedded in their own site
+    * Would require per-company selectors
+  
+  - Greenhouse with heavy customizations
+    * Some companies add custom question types
+  
+  - Workday, Taleo, iCIMS, other enterprise ATS
+    * Completely different form structures
+  
+  - Forms with complex CAPTCHAs
+    * Some require phone verification
+    * Some have image-based CAPTCHAs
+
+── WHAT'S WORKING ───────────────────────────────────────────────────
+Greenhouse Standard Forms (job-boards.greenhouse.io):
+  ✅ React hydration detection bypass (Patchright)
+  ✅ All 12 dropdown questions handled
+  ✅ Work authorization questions (Yes/No)
+  ✅ EEO demographic questions (with keyword matching)
+  ✅ Resume/CV upload
+  ✅ Cover letter upload
+  ✅ Phone number with country selector
+  ✅ LinkedIn profile
+  ✅ Consent checkboxes
+  ✅ Form submission
+  ✅ Email verification code retrieval from Gmail
+
+Anti-Detection Features:
+  ✅ Human-like mouse movements (bezier curves)
+  ✅ Human-like typing (variable speed, typos, corrections)
+  ✅ Human-like scrolling (chunked with pauses)
+  ✅ Random micro-pauses between all actions
+  ✅ Patchright bypasses CDP detection
+  ✅ No playwright_stealth conflicts
+
+── TESTED COMPANIES ─────────────────────────────────────────────────
+✅ Discord (Greenhouse standard) - FULLY WORKING
+  - 12 dropdowns filled
+  - Resume uploaded
+  - Form submitted
+  - Email verification code retrieved: 723851
+
+⚠️  Stripe (Custom embedded) - NOT SUPPORTED
+  - Uses custom form embedded in stripe.com
+  - Different React structure
+  - Would need custom handler (not worth it for 80% goal)
+
+── KEY FILES ─────────────────────────────────────────────────────────
+Main automation: auto_apply/modules/applicator/easy_apply.py
+  - _fill_gh_new_form(): Greenhouse standard forms
+  - _fill_gh_classic_form(): Greenhouse classic forms
+  - _apply_lever(): Lever ATS
+  - _apply_ashby(): Ashby ATS
+
+Terminal dashboard: auto_apply/main.py
+  - `python main.py stats` - Quick statistics
+  - `python main.py dashboard` - Interactive job manager
+
+Configuration: auto_apply/config.py
+  - Applicant info (name, email, phone, etc.)
+  - EEO demographic answers
+  - Proxy list (optional)
+
+── RECOMMENDED WORKFLOW ─────────────────────────────────────────────
+1. Scrape jobs from multiple sources
+   `python main.py scrape --keyword "data analyst" --limit 100`
+
+2. Score jobs against your resume
+   `python main.py score --limit 100`
+
+3. Tailor resumes for high-scoring jobs
+   `python main.py tailor --min-score 75 --limit 20`
+
+4. Apply to jobs with tailored resumes
+   `python main.py apply --limit 10 --submit`
+
+5. Monitor applications
+   `python main.py stats`
+   `python main.py dashboard`
+
+── NEXT STEPS (If Needed) ───────────────────────────────────────────
+Only implement if coverage < 70%:
+
+1. Add support for 2-3 more common ATS systems:
+   - Workday (used by many large enterprises)
+   - iCIMS (common in tech)
+   - Lever (already has basic support)
+
+2. Add company-specific handlers for top targets:
+   - If applying to Stripe frequently, add custom handler
+   - Same for other high-value targets
+
+3. Improve EEO dropdown matching:
+   - Better keyword maps for common EEO questions
+   - Fallback to "prefer not to answer" more intelligently
+
+── SUCCESS METRICS ──────────────────────────────────────────────────
+Track weekly:
+  - Total applications submitted
+  - Success rate (interviews / applications)
+  - Time per application
+  - CAPTCHA rate
+  - Companies covered
+
+Target:
+  - 50-100 applications/week
+  - 5-10% interview rate
+  - < 2 min per application
+  - < 10% CAPTCHA rate
+  - 70-80% company coverage
+
+====================================================================

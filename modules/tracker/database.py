@@ -14,9 +14,14 @@ log = config.get_logger(__name__)
 
 @contextmanager
 def _conn():
-    """Context manager yielding a sqlite3 connection with row_factory set."""
+    """Context manager yielding a sqlite3 connection with proper concurrency settings."""
     config.DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    con = sqlite3.connect(config.DB_PATH)
+    # Use WAL mode for better concurrency and longer timeout for locking
+    con = sqlite3.connect(config.DB_PATH, timeout=60.0, isolation_level=None)
+    con.execute("PRAGMA journal_mode=WAL")
+    con.execute("PRAGMA synchronous=NORMAL")
+    con.execute("PRAGMA busy_timeout=60000")
+    con.execute("PRAGMA wal_autocheckpoint=1000")
     con.row_factory = sqlite3.Row
     try:
         yield con
@@ -32,6 +37,10 @@ def init_db() -> None:
     """Create tables if they don't exist. Safe to call on every startup."""
     with _conn() as con:
         con.executescript(SCHEMA_SQL)
+        # Ensure WAL mode is set for better concurrency
+        con.execute("PRAGMA journal_mode=WAL")
+        con.execute("PRAGMA synchronous=NORMAL")
+        con.execute("PRAGMA wal_autocheckpoint=1000")
     log.info("Database initialised at %s", config.DB_PATH)
 
 
