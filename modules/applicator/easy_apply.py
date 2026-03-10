@@ -481,6 +481,16 @@ class EasyApplyBot:
             log.warning("CAPTCHA detected for job %d — skipping", job_id)
             return None
 
+        # Check for expired/404 job pages
+        page_text = page.evaluate("document.body.innerText.toLowerCase()") or ""
+        if any(s in page_text for s in ["page not found", "job not found", "posting not found",
+                                         "no longer available", "position has been filled",
+                                         "job board you are looking"]):
+            log.warning("Job %d appears expired/removed — skipping", job_id)
+            from modules.tracker.database import update_job_status
+            update_job_status(job_id, "ignored")
+            return None
+
         # Detect form variant by TARGET URL (before any redirects) and current URL.
         # Use target_url so custom career sites (Airbnb, Lyft, Stripe, etc.) that
         # redirect don't accidentally fall into the classic form path.
@@ -559,15 +569,27 @@ class EasyApplyBot:
                             unfilled.push(label);
                         }
                     });
-                    // Check all comboboxes (React Select) - only if they have actual placeholder text
-                    document.querySelectorAll('input[role="combobox"]').forEach(el => {
-                        // Check if this combobox has a value set (not just placeholder)
-                        if (!el.value || el.value.trim() === '') {
-                            const ctrl = el.closest('[class*="select__control"]');
-                            const label = ctrl?.querySelector('[class*="placeholder"]')?.textContent?.trim() || 'Dropdown';
-                            // Only report if placeholder still showing (not selected)
-                            if (label && label !== 'Select...' && label.length > 3) {
-                                unfilled.push(label + ' (dropdown)');
+                    // Check React Select dropdowns — only report unfilled if the
+                    // placeholder "Select..." is STILL showing (no single-value selected).
+                    // React Select stores selected value in state, NOT in input.value,
+                    // so we must check single-value div presence, not input.value.
+                    document.querySelectorAll('[class*="select__control"]').forEach(ctrl => {
+                        const placeholder = ctrl.querySelector('[class*="placeholder"]');
+                        const singleValue = ctrl.querySelector('[class*="single-value"]');
+                        const multiValue  = ctrl.querySelector('[class*="multi-value"]');
+                        // Only unfilled if placeholder is visible AND no selected value
+                        if (placeholder && !singleValue && !multiValue) {
+                            const placeholderText = placeholder.textContent.trim();
+                            if (placeholderText === 'Select...') {
+                                // Find label from parent question container
+                                let node = ctrl.parentElement;
+                                for (let i = 0; i < 6 && node; i++, node = node.parentElement) {
+                                    const t = node.textContent.trim().replace(/\\s+/g,' ');
+                                    if (t.length > 5 && t.length < 100) {
+                                        unfilled.push(t.slice(0, 50) + ' (dropdown)');
+                                        break;
+                                    }
+                                }
                             }
                         }
                     });
@@ -639,6 +661,10 @@ class EasyApplyBot:
             if not submit_clicked:
                 log.warning("No submit button found at all")
 
+            # Record time of submit click so we only accept emails arriving after it
+            import time as _time
+            _submit_time = _time.time()
+
             # ── Email verification code (Greenhouse anti-bot check) ────────────
             # After clicking submit, Greenhouse may show an 8-character security
             # code prompt. Detect it, fetch the code from Gmail, enter it, resubmit.
@@ -656,10 +682,10 @@ class EasyApplyBot:
                     from modules.utils.email_reader import get_verification_code
                     code = get_verification_code(
                         keywords=["greenhouse", job.company.lower(), "verify", "security code", "verification code"],
-                        # Require at least 2 digits in 6-8 char alphanumeric code
-                        # to avoid matching names (e.g. "Alexander" -> "lexander" has 0 digits)
                         code_pattern=r"\b(?=(?:[A-Za-z0-9]*\d){2})[A-Za-z0-9]{6,8}\b",
                         timeout=90,
+                        since_timestamp=_submit_time,  # only accept fresh codes
+                        recipient_email=config.APPLICANT_EMAIL,  # filter by applicant email
                     )
                     if code:
                         code = code.strip().upper()

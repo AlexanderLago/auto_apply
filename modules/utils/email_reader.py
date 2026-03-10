@@ -70,17 +70,22 @@ def get_verification_code(
     code_pattern: str = r"\b(?=(?:[A-Za-z0-9]*\d){2})[A-Za-z0-9]{6,8}\b",
     timeout: int = 120,
     poll_interval: int = 8,
+    since_timestamp: float = None,  # only accept emails received after this Unix time
+    recipient_email: str = None,    # filter by recipient email (To: header)
 ) -> Optional[str]:
     """
     Poll Gmail inbox and return the first verification code found in a
     recent email matching any of the given keywords (checked in From + Subject + body).
 
     Args:
-        keywords:     Strings to match against From/Subject/body (e.g. ["greenhouse", "chime"]).
-                      Defaults to ["greenhouse", "verify", "verification", "confirm"].
-        code_pattern: Regex for the code to extract. Default: 6-digit number.
-        timeout:      Total seconds to wait before giving up.
-        poll_interval: Seconds between inbox checks.
+        keywords:        Strings to match against From/Subject/body (e.g. ["greenhouse", "chime"]).
+                         Defaults to ["greenhouse", "verify", "verification", "confirm"].
+        code_pattern:    Regex for the code to extract. Default: 6-digit number.
+        timeout:         Total seconds to wait before giving up.
+        poll_interval:   Seconds between inbox checks.
+        since_timestamp: Only accept emails received after this Unix time (submit time).
+        recipient_email: Filter by recipient email address (To: header).
+                         Defaults to config.APPLICANT_EMAIL if not provided.
 
     Returns:
         The code string, or None if not found within timeout.
@@ -92,8 +97,17 @@ def get_verification_code(
     if keywords is None:
         keywords = ["greenhouse", "verify", "verification", "confirm", "chime"]
 
-    log.info("Waiting for verification email (timeout=%ds)...", timeout)
+    # Use applicant email as recipient filter if not specified
+    if recipient_email is None:
+        recipient_email = config.APPLICANT_EMAIL
+
+    log.info("Waiting for verification email (timeout=%ds, recipient=%s)...", 
+             timeout, recipient_email)
     deadline = time.time() + timeout
+    
+    # Track if we found any emails at all (for debugging)
+    emails_checked = 0
+    emails_skipped_recipient = 0
 
     while time.time() < deadline:
         try:
@@ -112,13 +126,40 @@ def get_verification_code(
                 _, msg_data = mail.fetch(num, "(BODY.PEEK[])")  # PEEK avoids marking as read
                 raw = msg_data[0][1]
                 msg = email.message_from_bytes(raw)
+                
+                emails_checked += 1
+
+                # Check email Date header against since_timestamp
+                if since_timestamp is not None:
+                    import email.utils as _eu
+                    date_str = msg.get("Date", "")
+                    try:
+                        msg_time = _eu.parsedate_to_datetime(date_str).timestamp()
+                        if msg_time < since_timestamp - 30:  # 30s grace for clock skew
+                            continue
+                    except Exception:
+                        pass  # Can't parse date — include it anyway
 
                 from_addr = _decode_str(msg.get("From", "")).lower()
+                
+                # Check recipient (To: header) - CRITICAL FIX
+                to_addr = _decode_str(msg.get("To", "")).lower()
+                
+                # Parse subject early for logging
                 subject_parts = decode_header(msg.get("Subject", ""))
                 subject = " ".join(
                     _decode_str(p[0]) if isinstance(p[0], bytes) else (p[0] or "")
                     for p in subject_parts
                 ).lower()
+                
+                if recipient_email and recipient_email.lower() not in to_addr:
+                    # Email was sent to a different address - skip it
+                    log.debug("Skipping email to %s (looking for %s)", to_addr, recipient_email)
+                    emails_skipped_recipient += 1
+                    continue
+                
+                log.debug("Checking email: From=%s, To=%s, Subject=%s", 
+                         from_addr[:50], to_addr[:50], subject[:50] if subject else "N/A")
                 body = _get_text_body(msg).lower()
                 combined = from_addr + " " + subject + " " + body
 
@@ -137,6 +178,10 @@ def get_verification_code(
         remaining = deadline - time.time()
         if remaining > 0:
             time.sleep(min(poll_interval, remaining))
+    
+    # Log summary for debugging
+    log.info("Email check complete: checked=%d, skipped_recipient=%d", 
+             emails_checked, emails_skipped_recipient)
 
     log.warning("Verification code not found within %d seconds", timeout)
     return None
