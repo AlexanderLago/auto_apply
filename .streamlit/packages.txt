@@ -1,0 +1,6 @@
+# System packages for Streamlit Cloud
+# See: https://docs.streamlit.io/streamlit-community-cloud/deploy-your-app/app-dependencies
+
+# Chromium dependencies for playwright (if needed)
+chromium
+chromium-driver

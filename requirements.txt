@@ -1,30 +1,28 @@
-# ── Core ──────────────────────────────────────────────────────────────────────
-python-dotenv>=1.0.0        # .env loading
-pydantic>=2.0.0             # data models & validation
-requests>=2.31.0            # HTTP calls (Greenhouse, Lever, Adzuna APIs)
+# Core
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+requests>=2.31.0
 
-# ── LLM ───────────────────────────────────────────────────────────────────────
-anthropic>=0.25.0           # Claude (tailoring, parsing, scoring)
-openai>=1.30.0              # OpenAI-compatible client — used for Groq, Cerebras, Gemini
-google-generativeai>=0.7.0  # Native Gemini SDK (fallback for gemini type)
+# LLM
+anthropic>=0.25.0
+openai>=1.30.0
+google-generativeai>=0.7.0
 
-# ── Resume parsing ────────────────────────────────────────────────────────────
-pdfplumber>=0.10.0          # PDF text extraction
-python-docx>=1.1.0          # DOCX read/write
+# Resume parsing
+pdfplumber>=0.10.0
+python-docx>=1.1.0
 
-# ── LinkedIn (unofficial Voyager API) ─────────────────────────────────────────
-linkedin-api>=2.1.0             # pip install linkedin-api
+# LinkedIn
+linkedin-api>=2.1.0
 
-# ── Browser automation (optional — Easy Apply) ────────────────────────────────
-playwright>=1.44.0          # Headless browser for LinkedIn Easy Apply
-                            # After install: `playwright install chromium`
-playwright-stealth>=0.0.9   # Patches browser fingerprint to avoid bot detection
-# python-jobspy>=1.1.0      # Requires Python>=3.10 — skip for now (using IndeedScraper instead)
+# Browser automation (for local use only)
+playwright>=1.44.0
+playwright-stealth>=0.0.9
 
-# ── Dashboard (optional) ──────────────────────────────────────────────────────
+# Dashboard
 streamlit>=1.35.0
 pandas>=2.0.0
-plotly>=5.18.0          # Interactive charts for dashboard
+plotly>=5.18.0
 
-# ── Dev / testing ─────────────────────────────────────────────────────────────
+# Dev
 pytest>=8.0.0
