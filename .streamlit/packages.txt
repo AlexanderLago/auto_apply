@@ -1,6 +1,6 @@
 # System packages for Streamlit Cloud
 # See: https://docs.streamlit.io/streamlit-community-cloud/deploy-your-app/app-dependencies
 
-# Chromium dependencies for playwright (if needed)
-chromium
-chromium-driver
+# Required for lxml (used by python-docx, beautifulsoup4)
+libxml2-dev
+libxslt-dev

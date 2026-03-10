@@ -11,13 +11,14 @@ google-generativeai>=0.7.0
 # Resume parsing
 pdfplumber>=0.10.0
 python-docx>=1.1.0
+lxml>=6.0.0
 
 # LinkedIn
 linkedin-api>=2.1.0
 
-# Browser automation (for local use only)
-playwright>=1.44.0
-playwright-stealth>=0.0.9
+# Browser automation (for local use only - skip on Streamlit Cloud)
+# playwright>=1.44.0
+# playwright-stealth>=0.0.9
 
 # Dashboard
 streamlit>=1.35.0
