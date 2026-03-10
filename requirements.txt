@@ -18,10 +18,13 @@ linkedin-api>=2.1.0             # pip install linkedin-api
 # ── Browser automation (optional — Easy Apply) ────────────────────────────────
 playwright>=1.44.0          # Headless browser for LinkedIn Easy Apply
                             # After install: `playwright install chromium`
+playwright-stealth>=0.0.9   # Patches browser fingerprint to avoid bot detection
+# python-jobspy>=1.1.0      # Requires Python>=3.10 — skip for now (using IndeedScraper instead)
 
 # ── Dashboard (optional) ──────────────────────────────────────────────────────
 streamlit>=1.35.0
 pandas>=2.0.0
+plotly>=5.18.0          # Interactive charts for dashboard
 
 # ── Dev / testing ─────────────────────────────────────────────────────────────
 pytest>=8.0.0

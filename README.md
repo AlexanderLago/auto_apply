@@ -146,6 +146,76 @@ streamlit run dashboard/app.py
 
 ---
 
+## 🌐 Streamlit Dashboard
+
+The project includes a full-featured web dashboard for monitoring and controlling your job application pipeline.
+
+### Running Locally
+
+```bash
+# Install dashboard dependencies
+pip install -r requirements.txt
+
+# Run the dashboard
+streamlit run dashboard/app.py
+```
+
+The dashboard will open in your browser at `http://localhost:8501`.
+
+### Dashboard Features
+
+- **📊 Pipeline Metrics**: Real-time view of jobs by status (new, scored, tailored, applied)
+- **🎯 Apply Queue**: See jobs ready for auto-apply with tailored resumes
+- **📋 Job Browser**: Filter and search all scraped jobs by score, location, status
+- **🔍 Job Details**: View fit breakdown, strengths, gaps for each position
+- **📬 Application Log**: Track all submitted applications and outcomes
+- **📄 Cover Letters**: Preview and download generated cover letters
+- **🚀 Pipeline Controls**: Run scrape, score, tailor, and apply steps from the UI
+
+### Deploying to Streamlit Cloud
+
+1. **Push to GitHub**: Ensure your code is pushed to a GitHub repository
+
+2. **Add Secrets**: In Streamlit Cloud dashboard:
+   - Go to your app → Settings → Secrets
+   - Add your API keys as TOML format:
+
+```toml
+anthropic_api_key = "your-key-here"
+adzuna_app_id = "your-id-here"
+adzuna_app_key = "your-key-here"
+linkedin_email = "your-email"
+linkedin_password = "your-password"
+applicant_first_name = "YourName"
+applicant_last_name = "YourLastName"
+applicant_email = "your.email@example.com"
+```
+
+3. **Deploy**:
+   - Go to https://share.streamlit.io
+   - Click "New App"
+   - Select your repository and branch
+   - Set main file path: `dashboard/app.py`
+   - Click "Deploy!"
+
+4. **Environment Variables**: Some scrapers may need additional setup:
+   - Create a `.streamlit/secrets.toml` file locally for testing
+   - Use the Streamlit Cloud UI for production secrets
+
+> **Note**: Browser automation (Easy Apply) requires Playwright which isn't supported on Streamlit Cloud. Use the dashboard for monitoring and manual triggering, but run auto-apply locally.
+
+### Local Configuration
+
+For local development, create `.streamlit/secrets.toml`:
+
+```bash
+mkdir .streamlit
+cp .streamlit/secrets.toml.example .streamlit/secrets.toml
+# Edit secrets.toml with your API keys
+```
+
+---
+
 ## Design Decisions
 
 - **No ORM** — raw sqlite3 is simpler for personal use, easy to inspect with DB Browser for SQLite
