@@ -688,7 +688,7 @@ class EasyApplyBot:
                         recipient_email=config.APPLICANT_EMAIL,  # filter by applicant email
                     )
                     if code:
-                        code = code.strip().upper()
+                        code = code.strip()  # preserve case — Greenhouse codes are case-sensitive
                         log.info("  Got verification code: %s — entering into form", code)
                         # Find the code input boxes and type the code
                         # Greenhouse uses either one input or 8 separate single-char inputs
@@ -855,10 +855,15 @@ class EasyApplyBot:
             page.get_by_label("Last Name").click()
             page.get_by_label("Last Name").fill(config.APPLICANT_LAST_NAME)
         except Exception: pass
-        try:
-            page.get_by_label("Preferred First Name").click()
-            page.get_by_label("Preferred First Name").fill(config.APPLICANT_PREFERRED_NAME)
-        except Exception: pass
+        for _pref_label in ("Preferred First Name", "Preferred Name", "Nickname", "Goes By"):
+            try:
+                fld = page.get_by_label(_pref_label)
+                if fld.count() > 0 and fld.first.is_visible(timeout=1000):
+                    fld.first.click()
+                    fld.first.fill(config.APPLICANT_PREFERRED_NAME)
+                    break
+            except Exception:
+                continue
         try:
             page.get_by_label("Email").click()
             page.get_by_label("Email").fill(config.APPLICANT_EMAIL)
@@ -869,121 +874,202 @@ class EasyApplyBot:
             # Wait for phone field to be visible
             phone_field = page.get_by_label("Phone")
             phone_field.wait_for(state='visible', timeout=5000)
-            page.wait_for_timeout(300)
+            page.wait_for_timeout(500)
 
             country_set = False
 
-            # Method 1: iti JavaScript API (official, most reliable)
-            # intl-tel-input stores all instances on window.intlTelInputGlobals
-            try:
-                result = page.evaluate("""() => {
-                    const telInputs = document.querySelectorAll('input[type="tel"]');
-                    for (const input of telInputs) {
-                        const iti = window.intlTelInputGlobals && window.intlTelInputGlobals.getInstance(input);
-                        if (iti) {
-                            iti.setCountry('us');
-                            // Fire events so React/Greenhouse picks up the change
-                            input.dispatchEvent(new Event('countrychange', { bubbles: true }));
-                            input.dispatchEvent(new Event('change', { bubbles: true }));
-                            return 'iti_api';
-                        }
-                    }
-                    return 'no_iti_instance';
-                }""")
-                if result == 'iti_api':
-                    log.info("Phone country set via iti JS API")
-                    country_set = True
-                else:
-                    log.debug("iti API not available (%s), trying fallbacks", result)
-            except Exception as _js:
-                log.debug("iti JS API failed: %s", _js)
-
-            # Method 2: Hidden <select> that iti widgets use internally (lowercase 'us')
+            # ── Method 1: Direct ITI widget manipulation (most reliable) ───────
+            # The iti widget stores country in data attributes and hidden inputs
+            # We directly set the country code and fire all necessary events
             if not country_set:
                 try:
                     result = page.evaluate("""() => {
-                        // iti injects a hidden <select> with class iti__hidden-input
-                        const sel = document.querySelector('.iti__hidden-input, select[name*="phone_country"], select[name*="country_code"]');
-                        if (sel) {
-                            sel.value = 'us';
-                            sel.dispatchEvent(new Event('change', { bubbles: true }));
-                            return 'hidden_select';
-                        }
-                        // Fallback: any select whose options include 'United States'
-                        for (const s of document.querySelectorAll('select')) {
-                            const opts = [...s.options].map(o => o.text);
-                            if (opts.some(t => t.includes('United States'))) {
-                                s.value = 'us';
-                                s.dispatchEvent(new Event('change', { bubbles: true }));
-                                return 'generic_select';
+                        // Find all tel inputs with iti widget
+                        const telInputs = document.querySelectorAll('input[type="tel"]');
+                        
+                        for (const input of telInputs) {
+                            // Check if this input has iti widget attached
+                            const iti = window.intlTelInputGlobals && window.intlTelInputGlobals.getInstance(input);
+                            
+                            if (iti) {
+                                // Method 1a: Use official ITI API
+                                iti.setCountry('us');
+                                
+                                // Fire all events that Greenhouse/React might listen for
+                                input.dispatchEvent(new Event('countrychange', { bubbles: true, cancelable: true }));
+                                input.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+                                input.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+                                input.dispatchEvent(new CustomEvent('intlTelInput:countrychange', { bubbles: true }));
+                                
+                                // Also update the hidden input if it exists
+                                const hiddenInput = input.parentElement.querySelector('.iti__hidden-input');
+                                if (hiddenInput) {
+                                    hiddenInput.value = 'us';
+                                    hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+                                }
+                                
+                                return 'iti_api_success';
+                            }
+                            
+                            // Method 1b: Direct DOM manipulation (no iti instance)
+                            // Look for the flag container and country code elements
+                            const flagContainer = input.parentElement.querySelector('.iti__flag-container');
+                            const selectedFlag = input.parentElement.querySelector('.iti__selected-flag');
+                            const selectedCountry = input.parentElement.querySelector('.iti__selected-country');
+                            
+                            if (selectedFlag || selectedCountry) {
+                                // Update the country code directly in the DOM
+                                const countryElement = selectedCountry || selectedFlag;
+                                if (countryElement) {
+                                    // Remove all country classes
+                                    countryElement.className = countryElement.className.replace(/iti__[^ ]*/g, '');
+                                    // Add US flag class
+                                    countryElement.classList.add('iti__flag', 'iti__us');
+                                    
+                                    // Update data attributes
+                                    countryElement.setAttribute('data-country-code', 'us');
+                                    
+                                    // Update title/aria labels
+                                    countryElement.setAttribute('title', 'United States');
+                                    countryElement.setAttribute('aria-label', 'United States');
+                                    
+                                    // Fire events
+                                    input.dispatchEvent(new Event('countrychange', { bubbles: true }));
+                                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                                    
+                                    return 'direct_dom_success';
+                                }
                             }
                         }
-                        return 'not_found';
+                        
+                        return 'no_iti_widget_found';
                     }""")
-                    if result in ('hidden_select', 'generic_select'):
-                        log.info("Phone country set via %s", result)
+                    
+                    if result in ('iti_api_success', 'direct_dom_success'):
+                        log.info("Phone country set via: %s", result)
                         country_set = True
+                        page.wait_for_timeout(300)
                     else:
-                        log.debug("Hidden select not found")
-                except Exception as _sel:
-                    log.debug("Select method failed: %s", _sel)
+                        log.debug("ITI widget method returned: %s", result)
+                        
+                except Exception as _iti:
+                    log.debug("ITI direct method failed: %s", _iti)
 
-            # Method 3: Open the country dropdown and click "United States"
-            # New GH forms use a React Select combobox (options have class select__option)
-            # Old GH/iti forms use a native dropdown (options have class iti__country)
+            # ── Method 2: Hidden select input (iti injects this) ───────────────
             if not country_set:
                 try:
-                    # The phone country control is combobox[0] on new GH forms;
-                    # on older forms it's behind an iti__selected-flag button
-                    opener = page.locator(
-                        'input[role="combobox"][class*="select__input"], '
-                        '.iti__selected-flag, .iti__flag-container button, '
-                        '[class*="iti__selected-country"]'
-                    ).first
-                    if opener.count() > 0:
-                        opener.scroll_into_view_if_needed()
-                        opener.click()
-                        page.wait_for_timeout(500)
-                        # "United States +1" is the first/focused option on new GH forms — press Enter
-                        # But also try explicit click in case focus is elsewhere
-                        us_item = (
-                            page.locator('[role="option"]').filter(has_text="United States").first
-                            if page.locator('[role="option"]').count() > 0
-                            else page.locator('[class*="select__option"]').filter(has_text="United States").first
-                        )
-                        if us_item.count() > 0:
-                            us_item.click()
-                            page.wait_for_timeout(300)
-                            log.info("Phone country set via React Select dropdown click")
+                    result = page.evaluate("""() => {
+                        // Look for iti's hidden select input
+                        const hiddenSelects = document.querySelectorAll('.iti__hidden-input, select.iti__country-list');
+                        
+                        for (const sel of hiddenSelects) {
+                            if (sel.tagName === 'SELECT') {
+                                sel.value = 'us';
+                                sel.dispatchEvent(new Event('change', { bubbles: true }));
+                                sel.dispatchEvent(new Event('input', { bubbles: true }));
+                                return 'hidden_select_updated';
+                            }
+                        }
+                        
+                        // Fallback: any select with US options
+                        for (const s of document.querySelectorAll('select')) {
+                            const options = [...s.options];
+                            const hasUS = options.some(o => o.value === 'us' || o.text.includes('United States'));
+                            if (hasUS && !s.disabled) {
+                                s.value = 'us';
+                                s.dispatchEvent(new Event('change', { bubbles: true }));
+                                return 'generic_select_updated';
+                            }
+                        }
+                        
+                        return 'no_select_found';
+                    }""")
+                    
+                    if result in ('hidden_select_updated', 'generic_select_updated'):
+                        log.info("Phone country set via: %s", result)
+                        country_set = True
+                        page.wait_for_timeout(300)
+                        
+                except Exception as _sel:
+                    log.debug("Hidden select method failed: %s", _sel)
+
+            # ── Method 3: Click dropdown and select (visual method) ────────────
+            if not country_set:
+                try:
+                    # Find the country selector button (flag button)
+                    country_btn = page.locator('.iti__selected-flag, .iti__flag-container button').first
+                    
+                    if country_btn.count() > 0:
+                        # Scroll into view and click
+                        country_btn.scroll_into_view_if_needed()
+                        country_btn.click()
+                        page.wait_for_timeout(600)  # Wait for dropdown to open
+                        
+                        # Try to find and click "United States" option
+                        # ITI uses li elements with data-country-code attribute
+                        us_option = page.locator('[data-country-code="us"], .iti__country:has-text("United States")').first
+                        
+                        if us_option.count() > 0:
+                            us_option.scroll_into_view_if_needed()
+                            us_option.click()
+                            page.wait_for_timeout(400)
+                            log.info("Phone country set via dropdown click")
                             country_set = True
                         else:
-                            # iti native dropdown: look for iti__country list items
-                            us_item = page.locator('[class*="iti__country"]').filter(has_text="United States").first
-                            if us_item.count() > 0:
-                                us_item.click()
-                                page.wait_for_timeout(300)
-                                log.info("Phone country set via iti dropdown click")
-                                country_set = True
-                            else:
-                                # US is focused by default — just press Enter
-                                page.keyboard.press("Enter")
-                                page.wait_for_timeout(200)
-                                log.info("Phone country set via Enter (US was focused)")
-                                country_set = True
-                    else:
-                        log.debug("No phone country opener found")
+                            # Try keyboard navigation (US is usually first)
+                            page.keyboard.press("ArrowDown")
+                            page.wait_for_timeout(100)
+                            page.keyboard.press("Enter")
+                            page.wait_for_timeout(200)
+                            log.info("Phone country set via keyboard")
+                            country_set = True
+                            
                 except Exception as _click:
                     log.debug("Dropdown click method failed: %s", _click)
 
+            # ── Method 4: React Select combobox (newer GH forms) ───────────────
+            if not country_set:
+                try:
+                    # New GH forms use React Select for country
+                    combobox = page.locator('input[role="combobox"][aria-label*="country" i]').first
+                    
+                    if combobox.count() > 0:
+                        combobox.click()
+                        page.wait_for_timeout(400)
+                        
+                        # Type "united" to filter
+                        combobox.fill("united")
+                        page.wait_for_timeout(300)
+                        
+                        # Press Enter to select first match
+                        page.keyboard.press("Enter")
+                        page.wait_for_timeout(200)
+                        log.info("Phone country set via React Select")
+                        country_set = True
+                        
+                except Exception as _react:
+                    log.debug("React Select method failed: %s", _react)
+
+            # Final check and warning
             if not country_set:
                 log.warning("Could not set phone country — form may show 'Select a country' error")
+                # Take screenshot for debugging
+                try:
+                    ss_dir = config.ROOT_DIR / "logs" / "screenshots"
+                    ss_dir.mkdir(parents=True, exist_ok=True)
+                    ss_path = ss_dir / f"phone_country_{int(time.time())}.png"
+                    page.screenshot(path=str(ss_path))
+                    log.info("Screenshot saved: %s", ss_path.name)
+                except Exception:
+                    pass
 
-            # Fill the phone number
+            # Fill the phone number (after country is set)
             page.wait_for_timeout(200)
             phone_field.fill(config.APPLICANT_PHONE)
-            log.info("Phone filled")
+            log.info("Phone filled with country=%s", "US" if country_set else "UNKNOWN")
+            
         except Exception as e:
-            log.debug("Phone filling failed: %s", e)
+            log.debug("Phone section failed: %s", e)
 
         # ── Resume upload ──────────────────────────────────────────────────────
         if self.resume_path and self.resume_path.exists():
@@ -1067,13 +1153,24 @@ class EasyApplyBot:
         _gender_id_ans = config.APPLICANT_GENDER_IDENTITY or _gender_ans
 
         _Q_MAP = [
-            # Work auth / custom questions
+            # Work auth / custom questions — more specific first
             (r"authoriz.*work|work.*authoriz|eligible.*work",        "Yes"),
             (r"located.{0,10}us\b|based.{0,10}us\b|current.{0,10}us\b", "Yes"),
-            (r"require.*sponsor|sponsor|visa.*requir",               "No"),
+            # Sponsorship — must come BEFORE generic "sponsor" to avoid matching "Canada" questions
+            (r"sponsor.{0,30}canada|canada.{0,30}sponsor",          "Yes"),  # US citizen needs Canada sponsorship
+            (r"require.*sponsor|sponsor|visa.*requir",               "No"),   # US work sponsorship: No
             (r"non.?compet",                                          "No"),
             (r"relocat|bay area|willing to move",                    "No"),
             (r"year.{0,20}exp|exp.{0,20}year",                      str(config.APPLICANT_YEARS_EXP)),
+            # State/province (type state name — options list will match)
+            (r"state.{0,20}reside|province.{0,20}reside|which.{0,10}state|which.{0,10}province",
+             "New Jersey"),  # Alex's state
+            # "How did you hear about us?" dropdown variant
+            (r"how did you.{0,30}learn|how did you.{0,30}hear|how.{0,15}find.{0,15}(job|role|position|opening|us)",
+             "LinkedIn"),
+            # "Previously employed here?" — always No
+            (r"previously.{0,30}employ|previously.{0,30}work.{0,15}(here|company|us|this)",
+             "No"),
             # EEO / demographic — MORE SPECIFIC patterns first, generic last
             # Gender identity (includes "I identify as:")
             (r"gender.{0,10}identity|identify.{0,15}as\b(?!.*race|.*orient|.*sex)",  _gender_id_ans),
@@ -1401,14 +1498,19 @@ class EasyApplyBot:
                 # Wait for dropdown animation to complete before selecting
                 page.wait_for_timeout(300)
 
-                # If the dropdown was opened via type-filter, clear the typed text.
-                # Non-filterable React Selects show "0 results" when text is present;
-                # clearing restores the full option list.
+                # If the dropdown was opened via type-filter, only clear the typed text
+                # for SHORT answers (Yes/No/Male/etc.) where the filter isn't helpful.
+                # For SPECIFIC answers like "New Jersey" or "Hispanic or Latino", keep the
+                # filter so Strategy A can find the exact match in the filtered list.
+                _SHORT_ANSWERS = {'yes', 'no', 'male', 'female', 'straight', 'other',
+                                  'none', 'true', 'false', '1', '2', '3', '4', '5'}
                 try:
                     current_val = page.locator('input[role="combobox"]').nth(cb_idx).input_value(timeout=500)
-                    if current_val:
+                    if current_val and current_val.lower().strip() in _SHORT_ANSWERS:
+                        # Short answer — clear so all options show (non-filterable dropdowns)
                         page.locator('input[role="combobox"]').nth(cb_idx).fill("")
                         page.wait_for_timeout(350)
+                    # For longer specific answers, keep the filter text so it narrows the list
                 except Exception:
                     pass
 
