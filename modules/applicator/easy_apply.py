@@ -368,6 +368,29 @@ class EasyApplyBot:
     def apply(self, job: Job, job_id: int) -> ApplyOutcome:
         log.info("Easy Apply [%s]: %s at %s (submit=%s)",
                  job.source, job.title, job.company, self.submit)
+        
+        # ── SKIP LIST: Companies with broken EEO form configurations ───────────
+        # These companies have scrambled dropdown options (their form bug, not ours)
+        # Veteran Status shows sexual orientation options, etc.
+        _SKIP_COMPANIES = {
+            'amplitude',  # Scrambled EEO dropdowns
+            'chime',      # Scrambled EEO dropdowns
+        }
+        
+        _company_slug = job.company.lower().replace(' ', '').replace('-', '').replace('.', '')
+        if any(skip in _company_slug for skip in _SKIP_COMPANIES):
+            log.warning("SKIPPING %s - Known broken EEO form configuration", job.company)
+            return ApplyOutcome(
+                job_id=job_id,
+                company=job.company,
+                title=job.title,
+                status="error",
+                error="Company has broken EEO form configuration (scrambled dropdowns)",
+                resume_path=str(self.resume_path) if self.resume_path else "",
+                cover_letter_path=""
+            )
+        # ── END SKIP LIST ───────────────────────────────────────────────────────
+        
         context, page = self._new_page()
         outcome = ApplyOutcome(job_id=job_id, company=job.company,
                                title=job.title, status="error")
@@ -1521,26 +1544,71 @@ class EasyApplyBot:
                 except Exception:
                     log.debug("  select__menu did not appear, continuing anyway")
 
-                # Debug: log what elements appear when dropdown is open
-                # KEY: scope to select__menu to avoid phone country dropdown (iti__country)
-                debug_info = page.evaluate("""(idx) => {
-                    const inp = document.querySelectorAll('input[role="combobox"]')[idx];
-                    const menu = inp?.closest('[class*="select__control"]')
-                        ?.querySelector('[class*="select__menu"]');
-                    const menus = menu ? [menu.className.slice(0, 80)] : [];
-                    const opts = menu
-                        ? [...menu.querySelectorAll('[role="option"]')].map(e => ({
-                            cls: e.className.slice(0, 60),
-                            txt: e.textContent.slice(0, 40),
-                            w: e.getBoundingClientRect().width,
-                            h: e.getBoundingClientRect().height
-                        }))
-                        : [];
-                    return { menus, opts: opts.slice(0, 10) };
-                }""", cb_idx)
-                if debug_info['opts']:
-                    log.info("  DEBUG menu classes: %s", debug_info['menus'][:3])
-                    log.info("  DEBUG option elements: %s", debug_info['opts'][:5])
+                # ── SCRAMBLED FORM DETECTION ────────────────────────────────────
+                # Some companies (Amplitude, Chime) have broken EEO form configs
+                # where dropdown options don't match the question at all.
+                # Detect this and skip the question or select "Prefer not to say"
+                
+                _BROKEN_FORM_COMPANIES = {'amplitude', 'chime'}
+                _company_slug = job.company.lower().replace(' ', '').replace('-', '').replace('.', '')
+                _is_broken_form = any(slug in _company_slug for slug in _BROKEN_FORM_COMPANIES)
+                
+                # Expected option patterns for common EEO questions
+                _EXPECTED_OPTIONS = {
+                    'gender': ['man', 'woman', 'male', 'female', 'non-binary', 'decline'],
+                    'veteran': ['veteran', 'military', 'no', 'yes', 'decline', 'prefer'],
+                    'disability': ['disability', 'disabilities', 'no', 'yes', 'decline', 'prefer'],
+                    'race': ['hispanic', 'latino', 'asian', 'black', 'white', 'native', 'pacific', 'decline'],
+                    'orientation': ['straight', 'heterosexual', 'gay', 'lesbian', 'bisexual', 'decline'],
+                    'yesno': ['yes', 'no'],
+                }
+                
+                def _check_options_valid(question_text, options_list):
+                    """Check if dropdown options match expected patterns for the question type."""
+                    if not options_list:
+                        return False
+                    
+                    q_lower = question_text.lower()
+                    opt_texts = [o['txt'].lower() for o in options_list]
+                    
+                    # Determine expected option set based on question keywords
+                    expected = None
+                    if 'gender' in q_lower or 'identify' in q_lower:
+                        expected = _EXPECTED_OPTIONS['gender']
+                    elif 'veteran' in q_lower or 'military' in q_lower:
+                        expected = _EXPECTED_OPTIONS['veteran']
+                    elif 'disability' in q_lower:
+                        expected = _EXPECTED_OPTIONS['disability']
+                    elif 'race' in q_lower or 'ethnic' in q_lower or 'hispanic' in q_lower or 'latino' in q_lower:
+                        expected = _EXPECTED_OPTIONS['race']
+                    elif 'orientation' in q_lower or 'sexual' in q_lower or 'lgbtq' in q_lower:
+                        expected = _EXPECTED_OPTIONS['orientation']
+                    elif any(kw in q_lower for kw in ['authoriz', 'sponsor', 'relocat', 'located']):
+                        expected = _EXPECTED_OPTIONS['yesno']
+                    
+                    if not expected:
+                        return True  # Unknown question type, assume valid
+                    
+                    # Check if at least 2 options match expected patterns
+                    matches = sum(1 for opt in opt_texts if any(exp in opt for exp in expected))
+                    valid_ratio = matches / max(len(opt_texts), 1)
+                    
+                    # Valid if >50% of options match expected patterns
+                    is_valid = valid_ratio > 0.5
+                    if not is_valid:
+                        log.warning("  SCRAMBLED FORM DETECTED: %.40s - options=%s", 
+                                   question_text[:40], opt_texts[:5])
+                    return is_valid
+                
+                # Validate options before proceeding
+                if not _check_options_valid(anchor, options):
+                    log.warning("  Skipping dropdown due to scrambled options: %.40s", anchor)
+                    # Try to close any open dropdown and continue
+                    page.keyboard.press('Escape')
+                    page.wait_for_timeout(200)
+                    continue
+                
+                # ── END SCRAMBLED FORM DETECTION ────────────────────────────────
 
                 # Get all options SCOPED to the select__menu container for THIS dropdown
                 # React Select renders the menu as a sibling after the control, or as a portal
@@ -1679,10 +1747,37 @@ class EasyApplyBot:
 
                 # Strategy A2: Substring match (answer is contained in option text)
                 # e.g. "Straight/Heterosexual" matches "Straight / Heterosexual"
+                # CRITICAL: Prevent opposite gender matching (Female for Man, etc.)
                 if not matched:
+                    # Define opposite/exclusive terms that should NEVER match
+                    _EXCLUSIVE_PAIRS = [
+                        ('man', 'female'),
+                        ('woman', 'male'),
+                        ('male', 'woman'),
+                        ('female', 'man'),
+                        ('yes', 'no'),
+                        ('no', 'yes'),
+                    ]
+                    
+                    answer_lower = answer.lower()
+                    
                     for opt in options:
-                        ot = opt['txt']
-                        if (answer.lower() in ot.lower() or ot.lower() in answer.lower()):
+                        ot = opt['txt'].lower()
+                        
+                        # Check if this option is an exclusive opposite of the answer
+                        is_exclusive_opposite = False
+                        for a, b in _EXCLUSIVE_PAIRS:
+                            if (answer_lower == a and b in ot) or (answer_lower == b and a in ot):
+                                # Skip this option - it's the opposite of what we want
+                                is_exclusive_opposite = True
+                                log.debug("  Skipping exclusive opposite: '%s' for answer '%s'", ot, answer)
+                                break
+                        
+                        if is_exclusive_opposite:
+                            continue
+                        
+                        # Now check for substring match
+                        if (answer_lower in ot or ot in answer_lower):
                             # Skip if another option is a better (exact) match
                             exact_exists = any(o['txt'].lower() == answer.lower() for o in options)
                             if exact_exists:
