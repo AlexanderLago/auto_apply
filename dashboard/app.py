@@ -376,7 +376,8 @@ tabs = st.tabs([
     "🔍 Job Detail",
     "📬 Applications",
     "📄 Cover Letters",
-    "📝 Run Log"
+    "📝 Run Log",
+    "🎯 Target Companies"  # NEW TAB
 ])
 
 # ── Apply Queue tab ──────────────────────────────────────────────────────────────
@@ -659,17 +660,263 @@ with tabs[4]:
 # ── Run Log tab ──────────────────────────────────────────────────────────────────
 with tabs[5]:
     st.subheader("📝 Last Apply Run Output")
-    
+
     output = st.session_state.get("last_apply_output", "")
-    
+
     if output:
         st.code(output, language="text")
-        
+
         if st.button("🗑️ Clear log"):
             st.session_state["last_apply_output"] = ""
             st.rerun()
     else:
         st.info("📝 No apply run yet this session. Use the sidebar to run Apply.")
+
+# ── Target Companies tab ──────────────────────────────────────────────────────────
+with tabs[6]:
+    from modules.utils.target_tracker import (
+        TARGET_COMPANIES,
+        TARGET_JOB_TITLES,
+        add_tracked_job,
+        remove_tracked_job,
+        update_job_status,
+        get_tracked_jobs,
+        get_tracker_stats,
+        get_enabled_companies,
+        get_enabled_titles,
+        toggle_company,
+        toggle_title,
+        get_quick_add_options,
+    )
+    
+    st.subheader("🎯 Target Companies Job Tracker")
+    st.caption("Track openings at remote-first and target companies")
+    
+    # ── Quick Stats ──────────────────────────────────────────────────────────────
+    stats = get_tracker_stats()
+    
+    stat_cols = st.columns(5)
+    with stat_cols[0]:
+        st.metric("📋 Tracking", stats["total_tracking"])
+    with stat_cols[1]:
+        st.metric("✅ Applied", stats["total_applied"])
+    with stat_cols[2]:
+        st.metric("🤝 Interviews", stats["total_interviews"])
+    with stat_cols[3]:
+        st.metric("🎉 Offers", stats["total_offers"])
+    with stat_cols[4]:
+        st.metric("❌ Rejected", stats["total_rejected"])
+    
+    st.divider()
+    
+    # ── Two Column Layout ────────────────────────────────────────────────────────
+    left_col, right_col = st.columns([2, 1])
+    
+    with left_col:
+        st.markdown("### 📝 Add New Job to Track")
+        
+        quick_options = get_quick_add_options()
+        
+        with st.form("add_job_form"):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                company = st.selectbox(
+                    "Company",
+                    quick_options["companies"],
+                    help="Select target company"
+                )
+                job_title = st.selectbox(
+                    "Job Title",
+                    quick_options["titles"],
+                    help="Select job title"
+                )
+            
+            with col2:
+                job_url = st.text_input(
+                    "Job URL",
+                    placeholder="https://...",
+                    help="Link to job posting"
+                )
+                location = st.text_input(
+                    "Location",
+                    value="Remote",
+                    help="Job location"
+                )
+            
+            notes = st.text_area(
+                "Notes",
+                placeholder="Any additional info...",
+                help="Add notes about this position"
+            )
+            
+            submitted = st.form_submit_button("➕ Add Job", use_container_width=True)
+            
+            if submitted:
+                if company and job_title and job_url:
+                    job = add_tracked_job(
+                        company=company,
+                        title=job_title,
+                        url=job_url,
+                        location=location,
+                        notes=notes
+                    )
+                    st.success(f"✅ Added: {job_title} at {company}")
+                    st.rerun()
+                else:
+                    st.error("Please fill in Company, Job Title, and URL")
+        
+        st.markdown("---")
+        
+        # ── Tracked Jobs Table ──────────────────────────────────────────────────
+        st.markdown("### 📊 Tracked Jobs")
+        
+        # Filter options
+        filter_col1, filter_col2 = st.columns(2)
+        with filter_col1:
+            status_filter = st.selectbox(
+                "Filter by Status",
+                ["all", "tracking", "applied", "interview", "offer", "rejected"],
+                key="target_status_filter"
+            )
+        with filter_col2:
+            company_filter = st.selectbox(
+                "Filter by Company",
+                ["all"] + quick_options["companies"],
+                key="target_company_filter"
+            )
+        
+        # Get and filter jobs
+        tracked_jobs = get_tracked_jobs()
+        
+        if status_filter != "all":
+            tracked_jobs = [j for j in tracked_jobs if j["status"] == status_filter]
+        
+        if company_filter != "all":
+            tracked_jobs = [j for j in tracked_jobs if j["company"] == company_filter]
+        
+        if tracked_jobs:
+            # Create DataFrame for display
+            jobs_df = pd.DataFrame(tracked_jobs)
+            
+            # Status emoji mapping
+            status_emoji = {
+                "tracking": "👀",
+                "applied": "✅",
+                "interview": "🤝",
+                "offer": "🎉",
+                "rejected": "❌",
+            }
+            
+            jobs_df["status_display"] = jobs_df["status"].apply(lambda x: status_emoji.get(x, "❓"))
+            
+            # Display table
+            display_cols = ["status_display", "company", "title", "location", "date_added", "url"]
+            display_cols = [c for c in display_cols if c in jobs_df.columns]
+            
+            st.dataframe(
+                jobs_df[display_cols],
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "status_display": st.column_config.TextColumn("Status"),
+                    "url": st.column_config.LinkColumn("Link"),
+                    "date_added": st.column_config.DatetimeColumn("Date Added"),
+                }
+            )
+            
+            # Actions for each job
+            st.markdown("#### Actions")
+            for job in tracked_jobs:
+                with st.expander(f"{job['title']} @ {job['company']} - {status_emoji.get(job['status'], '❓')}"):
+                    st.markdown(f"**URL:** {job['url']}")
+                    st.markdown(f"**Location:** {job['location']}")
+                    st.markdown(f"**Notes:** {job.get('notes', 'N/A')}")
+                    st.markdown(f"**Date Added:** {job['date_added']}")
+                    
+                    # Status update
+                    new_status = st.selectbox(
+                        "Update Status",
+                        ["tracking", "applied", "interview", "offer", "rejected"],
+                        index=["tracking", "applied", "interview", "offer", "rejected"].index(job["status"]) if job["status"] in ["tracking", "applied", "interview", "offer", "rejected"] else 0,
+                        key=f"status_{job['id']}"
+                    )
+                    
+                    if new_status != job["status"]:
+                        if update_job_status(job["id"], new_status):
+                            st.success("Status updated!")
+                            st.rerun()
+                    
+                    # Remove button
+                    if st.button(f"🗑️ Remove", key=f"remove_{job['id']}"):
+                        if remove_tracked_job(job["id"]):
+                            st.success("Job removed from tracking")
+                            st.rerun()
+        else:
+            st.info("👋 No jobs being tracked yet. Add your first target job above!")
+    
+    with right_col:
+        st.markdown("### 🏢 Target Companies")
+        
+        # Company type filters
+        st.markdown("**Filter by Type:**")
+        type_filter = st.radio(
+            "Company Type",
+            ["all", "remote-first", "remote-friendly", "fintech"],
+            label_visibility="collapsed"
+        )
+        
+        # Display companies
+        enabled_companies = get_enabled_companies()
+        
+        for company, info in TARGET_COMPANIES.items():
+            if type_filter != "all" and info["type"] != type_filter:
+                continue
+            
+            is_enabled = company in enabled_companies
+            
+            # Company card
+            with st.container():
+                col1, col2 = st.columns([4, 1])
+                
+                with col1:
+                    type_badge = {
+                        "remote-first": "🌐",
+                        "remote-friendly": "✅",
+                        "fintech": "💰",
+                    }.get(info["type"], "📍")
+                    
+                    st.markdown(f"**{type_badge} {company}**")
+                    st.caption(f"*{info['type'].replace('-', ' ').title()}*")
+                
+                with col2:
+                    # Toggle tracking
+                    if st.checkbox(
+                        "✓",
+                        value=is_enabled,
+                        key=f"enable_{company}",
+                        help=f"Enable/disable tracking for {company}"
+                    ):
+                        if not is_enabled:
+                            toggle_company(company, True)
+                            st.rerun()
+                    else:
+                        if is_enabled:
+                            toggle_company(company, False)
+                            st.rerun()
+                
+                # Careers link
+                st.markdown(f"[Careers Page]({info['careers_url']})")
+                st.divider()
+        
+        st.markdown("---")
+        st.markdown("### 📈 Stats by Company")
+        
+        if stats["by_company"]:
+            for company, count in sorted(stats["by_company"].items(), key=lambda x: x[1], reverse=True)[:10]:
+                st.caption(f"{company}: **{count}** jobs")
+        else:
+            st.info("No stats yet")
 
 # ── Footer ──────────────────────────────────────────────────────────────────────
 st.markdown("---")

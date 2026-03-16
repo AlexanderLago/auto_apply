@@ -48,10 +48,43 @@ if is_target_location(job_row):
 
 from modules.utils.email_reader import get_verification_code
 from modules.utils.location_filter import filter_jobs, is_target_location, location_label
+from modules.utils.target_tracker import (
+    TARGET_COMPANIES,
+    TARGET_JOB_TITLES,
+    add_tracked_job,
+    remove_tracked_job,
+    update_job_status,
+    get_tracked_jobs,
+    get_tracker_stats,
+    get_enabled_companies,
+    get_enabled_titles,
+    toggle_company,
+    toggle_title,
+    match_job_title,
+    is_target_company,
+    get_company_info,
+    get_quick_add_options,
+)
 
 __all__ = [
     "get_verification_code",
     "filter_jobs",
     "is_target_location",
     "location_label",
+    # Target tracker
+    "TARGET_COMPANIES",
+    "TARGET_JOB_TITLES",
+    "add_tracked_job",
+    "remove_tracked_job",
+    "update_job_status",
+    "get_tracked_jobs",
+    "get_tracker_stats",
+    "get_enabled_companies",
+    "get_enabled_titles",
+    "toggle_company",
+    "toggle_title",
+    "match_job_title",
+    "is_target_company",
+    "get_company_info",
+    "get_quick_add_options",
 ]
