@@ -65,6 +65,16 @@ from modules.utils.target_tracker import (
     get_company_info,
     get_quick_add_options,
 )
+from modules.utils.user_detector import (
+    get_machine_id,
+    get_user_folder,
+    get_user_config,
+    get_current_user_info,
+    list_all_users,
+    switch_user_context,
+    initialize_user_session,
+    USERS_DIR,
+)
 
 __all__ = [
     "get_verification_code",
@@ -87,4 +97,13 @@ __all__ = [
     "is_target_company",
     "get_company_info",
     "get_quick_add_options",
+    # User detection
+    "get_machine_id",
+    "get_user_folder",
+    "get_user_config",
+    "get_current_user_info",
+    "list_all_users",
+    "switch_user_context",
+    "initialize_user_session",
+    "USERS_DIR",
 ]

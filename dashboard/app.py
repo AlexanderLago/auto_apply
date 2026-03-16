@@ -1,6 +1,9 @@
 # dashboard/app.py — Auto Apply control panel + monitoring dashboard
 # Run with: python main.py dashboard   (or: streamlit run dashboard/app.py)
 # Deploy on Streamlit Cloud: https://share.streamlit.io
+# 
+# MULTI-USER SUPPORT: Automatically detects users by machine fingerprint
+# Each user gets isolated data (resume, applications, settings)
 
 import json
 import subprocess
@@ -18,24 +21,42 @@ import plotly.graph_objects as go
 
 import config
 from modules.tracker.database import (
-    init_db, get_jobs, get_applications, deduplicate_jobs, 
+    init_db, get_jobs, get_applications, deduplicate_jobs,
     update_job_status, save_fit_result, log_application,
 )
 from modules.tracker.models import Application
 from modules.utils.location_filter import filter_jobs, is_target_location
+from modules.utils.user_detector import (
+    initialize_user_session,
+    get_current_user_info,
+    list_all_users,
+    switch_user_context,
+    get_user_config,
+)
+
+# ── Initialize User Session ─────────────────────────────────────────────────────
+# Each machine/user gets their own isolated data folder
+user_session = initialize_user_session()
+user_info = user_session["info"]
+user_config = user_session["config"]
+
+# Update config paths to use user-specific paths
+config.DB_PATH = user_config["db_path"]
+config.LOG_PATH = user_config["log_path"]
+config.MASTER_RESUME = user_config["master_resume"]
 
 # ── Page config ──────────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Auto Apply Dashboard",
+    page_title=f"Auto Apply Dashboard - {user_info['display_name']}",
     page_icon="🤖",
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
-        "About": "Auto Apply — Job Application Automation Pipeline\n\nBuilt with Streamlit"
+        "About": f"Auto Apply — Job Application Automation Pipeline\n\nCurrent User: {user_info['display_name']}\n\nBuilt with Streamlit"
     }
 )
 
-# ── Initialize DB ───────────────────────────────────────────────────────────────
+# ── Initialize DB (with user-specific path) ─────────────────────────────────────
 init_db()
 
 # ── Custom CSS ──────────────────────────────────────────────────────────────────
@@ -87,17 +108,53 @@ with st.sidebar:
     st.title("Auto Apply")
     st.caption("AI-Powered Job Application Automation")
     
+    # ── User Info Display ──────────────────────────────────────────────────────
     st.markdown("---")
+    st.subheader("👤 Current User")
     
+    # Display current user info
+    user_badge = "✅ You" if user_info.get("is_new_user", False) else "👤"
+    st.info(f"{user_badge} **{user_info['display_name']}**")
+    st.caption(f"Machine ID: `{user_info['user_id'][:8]}...`")
+    
+    if user_info.get("is_new_user", False):
+        st.warning("⚠️ New user! Please upload your resume in the Target Companies tab.")
+    
+    # User switcher (for testing or if someone needs to switch)
+    st.markdown("---")
+    st.subheader("🔄 Switch User")
+    
+    all_users = list_all_users()
+    user_options = {u["display_name"]: u["user_id"] for u in all_users}
+    user_options["➕ New User (This Machine)"] = "current"
+    
+    selected_user = st.selectbox(
+        "Select user profile",
+        list(user_options.keys()),
+        index=list(user_options.keys()).index(user_info["display_name"]) if user_info["display_name"] in user_options else 0
+    )
+    
+    if st.button("Switch User", use_container_width=True):
+        selected_id = user_options[selected_user]
+        if selected_id != "current":
+            # Switch to selected user
+            switch_user_context(selected_id)
+            st.success(f"Switched to {selected_user}")
+            st.rerun()
+        else:
+            st.info("Already using this machine's profile")
+    
+    st.markdown("---")
+
     # User profile info
-    st.subheader("👤 Candidate Profile")
+    st.subheader("📋 Candidate Profile")
     profile_cached = None
     try:
         from modules.parser.candidate_parser import load_cached_profile
         profile_cached = load_cached_profile()
     except:
         pass
-    
+
     if profile_cached:
         st.info(f"**{profile_cached.get('name', 'Unknown')}**\n\n{profile_cached.get('titles', [''])[0] if profile_cached.get('titles') else ''}")
         st.caption(f"📍 {profile_cached.get('location', 'Unknown')}")
